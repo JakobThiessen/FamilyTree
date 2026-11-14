@@ -69,6 +69,26 @@ Der Kern (`src/core`) ist reines TypeScript ohne DOM und Framework und läuft in
 Alle Dokumente liegen in [docs/](docs/README.md):
 [PLAN](docs/PLAN.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA-MODEL](docs/DATA-MODEL.md) · [DATA-SOURCES](docs/DATA-SOURCES.md) · [DECISIONS](docs/DECISIONS.md) · [UI-KONZEPT](docs/UI-KONZEPT.md) · [TESTING](docs/TESTING.md) · [GLOSSARY](docs/GLOSSARY.md) · [CHANGELOG](docs/CHANGELOG.md) · [AGENTS](docs/AGENTS.md) (Regeln für Mitwirkende und KI-Assistenten)
 
+## Bilder
+
+Aufnahmen mit den erfundenen Beispieldaten aus `example/` (keine echten Personen).
+
+**Stammbaum:** Fokusperson, Familienlinien, Filterpanel und Personendetails (`cousin-marriage.json`)
+
+![Stammbaum-Ansicht mit Filterpanel und Personendetails](docs/screenshots/stammbaum.jpg)
+
+**Ahnen:** Ahnentafel mit Sosa-Nummern je Generation (`cousin-marriage.json`)
+
+![Ahnentafel mit Sosa-Nummern](docs/screenshots/ahnen.jpg)
+
+**Zeitleiste:** Lebensbalken auf einer Zeitachse mit Heirats- und Geburtsmarken (`migration.json`)
+
+![Zeitleiste mit Lebensbalken](docs/screenshots/zeitleiste.jpg)
+
+**Karte:** Orte und Lebenswege auf der mitgelieferten Offline-Weltkarte (`migration.json`)
+
+![Karte mit Lebenswegen](docs/screenshots/karte.jpg)
+
 ## Lizenz
 
-Noch nicht festgelegt.
+Das Projekt steht unter der **MIT-Lizenz** (siehe [LICENSE](LICENSE)). Welche Lizenzen die verwendeten Pakete und Datenquellen haben, steht in [LIZENZ.md](LIZENZ.md).

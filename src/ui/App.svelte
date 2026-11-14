@@ -16,6 +16,9 @@
   import PersonDetails from "./PersonDetails.svelte";
   import SearchBox from "./SearchBox.svelte";
   import TreeViewer from "./TreeViewer.svelte";
+  import { i18n, setLang, t } from "./lang.svelte";
+  import { LANGS } from "./i18n";
+  import type { Lang } from "./i18n";
   import { describePerson } from "./personInfo";
 
   // Speicher (IndexedDB). Wird beim Start geöffnet; fehlt IndexedDB, läuft die App ohne Speicherung.
@@ -33,12 +36,12 @@
   // Reiter: ein einfaches $state-Feld statt Router-Paket (UI-KONZEPT, M7b). Noch ohne Inhalt: „folgt“.
   type Tab = "tree" | "ancestors" | "timeline" | "map";
   let tab = $state<Tab>("tree");
-  const TABS: { id: Tab; label: string }[] = [
-    { id: "tree", label: "Stammbaum" },
-    { id: "ancestors", label: "Ahnen" },
-    { id: "timeline", label: "Zeitleiste" },
-    { id: "map", label: "Karte" },
-  ];
+  const TABS = $derived<{ id: Tab; label: string }[]>([
+    { id: "tree", label: t("app.tab.tree") },
+    { id: "ancestors", label: t("app.tab.ancestors") },
+    { id: "timeline", label: t("app.tab.timeline") },
+    { id: "map", label: t("app.tab.map") },
+  ]);
 
   let dialog: ReturnType<typeof ImportDialog>;
   let online: ReturnType<typeof OnlineDialog>;
@@ -51,11 +54,15 @@
   const persons = $derived<Map<PersonId, Person>>(new Map((data?.persons ?? []).map((p) => [p.id, p])));
   const sources = $derived<Map<string, Source>>(new Map((data?.sources ?? []).map((s) => [s.id, s])));
   const graph = $derived(data ? new FamilyGraph(data) : null);
-  const info = $derived(graph && focusId ? describePerson(graph, sources, focusId) : null);
+  const info = $derived(graph && focusId ? describePerson(graph, sources, focusId, i18n.lang) : null);
 
   async function refresh() {
     if (store) saved = await store.listTrees();
   }
+
+  $effect(() => {
+    document.documentElement.lang = i18n.lang; // Bildschirmleser sprechen in der richtigen Sprache
+  });
 
   onMount(async () => {
     dialog.open(); // Startbild: Datei laden oder gespeicherten Baum öffnen
@@ -63,7 +70,7 @@
       store = await TreeStore.open();
       await refresh();
     } catch (e) {
-      storageError = "Speicher nicht verfügbar: " + (e instanceof Error ? e.message : String(e));
+      storageError = t("app.storageUnavailable", { error: e instanceof Error ? e.message : String(e) });
     }
   });
 
@@ -83,7 +90,7 @@
       savedId = meta.id;
       await refresh();
     } catch (e) {
-      storageError = "Speichern fehlgeschlagen: " + (e instanceof Error ? e.message : String(e));
+      storageError = t("app.saveFailed", { error: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -107,12 +114,12 @@
         await store.replaceTree(savedId, res.data);
         await refresh();
       } catch (e) {
-        storageError = "Speichern fehlgeschlagen: " + (e instanceof Error ? e.message : String(e));
+        storageError = t("app.saveFailed", { error: e instanceof Error ? e.message : String(e) });
       }
     }
     startId = res.rootId;
     data = res.data; // {#key data} baut die Ansicht neu auf
-    notice = summary + (savedId ? "" : " Noch nicht gespeichert.");
+    notice = summary + (savedId ? "" : t("app.notSaved"));
   }
 
   // Dateien lassen sich überall im Fenster ablegen.
@@ -144,33 +151,33 @@
 
 <div class="app">
   <header>
-    <div class="brand"><strong>FamilyTree</strong><small>Stammbaum im Browser</small></div>
+    <div class="brand"><strong>FamilyTree</strong><small>{t("app.subtitle")}</small></div>
     {#if data}<span class="name" title={treeName}>{treeName}</span>{/if}
-    <nav class="tabs" aria-label="Rubriken">
+    <nav class="tabs" aria-label={t("app.tabs.label")}>
       {#each TABS as t (t.id)}
         <button class="tab" class:on={tab === t.id} aria-current={tab === t.id ? "page" : undefined} onclick={() => (tab = t.id)}>{t.label}</button>
       {/each}
       <!-- Optionale Rubriken, später (nach M8): Dublettenvorschläge, Treffer, Quellenliste -->
-      <button class="tab" disabled title="Folgt: Aufgabenliste (fehlende Daten, Dubletten)">Forschung</button>
-      <button class="tab" disabled title="Folgt: Quellenliste">Quellen</button>
+      <button class="tab" disabled title={t("app.tab.researchSoon")}>{t("app.tab.research")}</button>
+      <button class="tab" disabled title={t("app.tab.sourcesSoon")}>{t("app.tab.sources")}</button>
     </nav>
     <span class="grow"></span>
     {#if data}<div class="search-slot"><SearchBox {persons} onPick={pick} /></div>{/if}
-    <select class="lang" disabled aria-label="Sprache (folgt mit M9)" title="Sprachumschalter folgt mit M9">
-      <option>DE</option><option>EN</option>
+    <select class="lang" aria-label={t("app.lang.label")} title={t("app.lang.title")} value={i18n.lang} onchange={(e) => setLang(e.currentTarget.value as Lang)}>
+      {#each LANGS as l (l)}<option value={l}>{l.toUpperCase()}</option>{/each}
     </select>
     {#if data}
-      {#if !savedId}<button onclick={saveCurrent} disabled={!store} title="Im Browser speichern (IndexedDB)">Speichern</button>{/if}
+      {#if !savedId}<button onclick={saveCurrent} disabled={!store} title={t("app.save.title")}>{t("app.save")}</button>{/if}
       <button onclick={() => download(exportGedcom(data!), `${baseName()}.ged`, "text/plain;charset=utf-8")}>GEDCOM</button>
       <button onclick={() => download(serializeTreeData(data!), `${baseName()}.json`, "application/json")}>JSON</button>
-      <button onclick={() => online.open()} title="Personen in offenen Quellen suchen (Wikidata, WikiTree)">Online suchen …</button>
-      {#if tab === "tree"}<button class="panel-toggle" onclick={() => (panelOpen = !panelOpen)} aria-pressed={panelOpen}>Details</button>{/if}
+      <button onclick={() => online.open()} title={t("app.online.title")}>{t("app.online")}</button>
+      {#if tab === "tree"}<button class="panel-toggle" onclick={() => (panelOpen = !panelOpen)} aria-pressed={panelOpen}>{t("app.details")}</button>{/if}
     {/if}
-    <button class="primary" onclick={() => dialog.open()}>Öffnen / Import …</button>
+    <button class="primary" onclick={() => dialog.open()}>{t("app.open")}</button>
   </header>
 
   {#if notice}
-    <p class="notice" role="status">{notice} <button class="link" onclick={() => (notice = "")}>Schließen</button></p>
+    <p class="notice" role="status">{notice} <button class="link" onclick={() => (notice = "")}>{t("app.close")}</button></p>
   {/if}
   {#if storageError && data}<p class="notice bad" role="alert">{storageError}</p>{/if}
 
@@ -181,15 +188,15 @@
         <!-- {#key}: bei anderen Daten wird die Ansicht komplett neu aufgebaut -->
         {#key data}<TreeViewer bind:this={viewer} {data} {graph} {startId} title={treeName} onFocusChange={(id) => (focusId = id)} />{/key}
       {:else}
-        <p class="empty">Noch kein Stammbaum geöffnet.</p>
+        <p class="empty">{t("app.empty")}</p>
       {/if}
     </div>
     {#if tab === "ancestors"}
-      <div class="stage"><AncestorsView {graph} {persons} {focusId} onPick={pickKeepTab} /></div>
+      {#key i18n.lang}<div class="stage"><AncestorsView {graph} {persons} {focusId} onPick={pickKeepTab} /></div>{/key}
     {:else if tab === "timeline"}
-      <div class="stage"><TimelineView {graph} {persons} {focusId} onPick={pickKeepTab} /></div>
+      {#key i18n.lang}<div class="stage"><TimelineView {graph} {persons} {focusId} onPick={pickKeepTab} /></div>{/key}
     {:else if tab === "map"}
-      <div class="stage"><MapView {graph} {focusId} onPick={pickKeepTab} /></div>
+      {#key i18n.lang}<div class="stage"><MapView {graph} {focusId} onPick={pickKeepTab} /></div>{/key}
     {/if}
     {#if data && tab === "tree" && panelOpen}
       <aside>

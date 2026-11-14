@@ -123,8 +123,18 @@ export function parseFuzzyDate(input: string): FuzzyDate | null {
   return p ? make("exact", p, text) : null;
 }
 
-function formatParts(year: number, month?: number, day?: number): string {
-  const monthName = month !== undefined ? MONTH_NAMES[month - 1] : undefined;
+/** Anzeigesprache der Formatierer im Kern (D34). Texte der Oberfläche liegen in `src/ui/locales`. */
+export type DisplayLang = "de" | "en";
+
+const MONTH_NAMES_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+function formatParts(year: number, month?: number, day?: number, lang: DisplayLang = "de"): string {
+  const monthName = month !== undefined ? (lang === "en" ? MONTH_NAMES_EN : MONTH_NAMES)[month - 1] : undefined;
+  if (lang === "en") {
+    if (monthName && day !== undefined) return `${day} ${monthName} ${year}`;
+    if (monthName) return `${monthName} ${year}`;
+    return String(year);
+  }
   if (monthName && day !== undefined) return `${day}. ${monthName} ${year}`;
   if (monthName) return `${monthName} ${year}`;
   return String(year);
@@ -134,21 +144,24 @@ function formatParts(year: number, month?: number, day?: number): string {
  * Formatiert für die Anzeige auf Deutsch, immer aus den Feldern (nicht aus `text`),
  * damit die Anzeige einheitlich ist. Fehlt das Jahr, kommt `text` oder "unbekannt".
  */
-export function formatFuzzyDate(d: FuzzyDate | undefined): string {
-  if (!d) return "unbekannt";
-  if (d.year === undefined) return d.text ?? "unbekannt";
-  const base = formatParts(d.year, d.month, d.day);
+export function formatFuzzyDate(d: FuzzyDate | undefined, lang: DisplayLang = "de"): string {
+  const en = lang === "en";
+  const unknown = en ? "unknown" : "unbekannt";
+  if (!d) return unknown;
+  if (d.year === undefined) return d.text ?? unknown;
+  const base = formatParts(d.year, d.month, d.day, lang);
   switch (d.kind) {
     case "exact":
       return base;
     case "about":
-      return `um ${base}`;
+      return `${en ? "about" : "um"} ${base}`;
     case "before":
-      return `vor ${base}`;
+      return `${en ? "before" : "vor"} ${base}`;
     case "after":
-      return `nach ${base}`;
+      return `${en ? "after" : "nach"} ${base}`;
     case "between":
-      return d.yearTo !== undefined ? `zwischen ${base} und ${d.yearTo}` : `um ${base}`;
+      if (d.yearTo === undefined) return `${en ? "about" : "um"} ${base}`;
+      return en ? `between ${base} and ${d.yearTo}` : `zwischen ${base} und ${d.yearTo}`;
   }
 }
 

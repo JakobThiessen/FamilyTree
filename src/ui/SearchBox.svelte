@@ -3,6 +3,7 @@
   import type { Person, PersonId } from "../core";
   import { PersonSearchIndex } from "../core";
   import { displayName, lifeSpan } from "../render/style";
+  import { t } from "./lang.svelte";
 
   let { persons, onPick }: { persons: ReadonlyMap<PersonId, Person>; onPick: (id: PersonId) => void } = $props();
 
@@ -59,7 +60,8 @@
     bind:this={input}
     bind:value={query}
     type="search"
-    placeholder="Person suchen …  ( / )"
+    placeholder={t("search.placeholder")}
+    aria-label={t("search.placeholder")}
     role="combobox"
     aria-expanded={open && hits.length > 0}
     aria-controls="search-hits"
@@ -80,7 +82,7 @@
           </button>
         </li>
       {:else}
-        <li class="none">Keine Treffer</li>
+        <li class="none">{t("search.none")}</li>
       {/each}
     </ul>
   {/if}

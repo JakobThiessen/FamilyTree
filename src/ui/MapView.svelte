@@ -3,6 +3,7 @@
   // Berechnung in src/core/places.ts. Koordinaten fehlen oft (GEDCOM); auf Knopfdruck werden sie bei Wikidata
   // gesucht (nur Ortsnamen gehen raus) und lokal im Browser gemerkt. Solche Orte gelten als „vermutet“.
   import { onDestroy } from "svelte";
+  import { fmt, t, tn } from "./lang.svelte";
   import { collectPlaces, lifePaths, placeKey, timelinePersonIds } from "../core";
   import type { Coordinates, FamilyGraph, KnownPlaces, PersonId, TimelineScope } from "../core";
   import { lookupPlaces } from "../providers";
@@ -59,7 +60,7 @@
   // ---- Wikidata-Abfrage ----
   const BATCH = 25;
   let busy = $state(false);
-  let progress = $state("");
+  let progress = $state<{ done: number; total: number; name: string } | null>(null);
   let lookupError = $state("");
   let abort: AbortController | null = null;
   onDestroy(() => abort?.abort());
@@ -76,14 +77,14 @@
       await lookupPlaces(batch.map((p) => p.name), { signal: abort.signal }, (name, m) => {
         const key = placeKey(name);
         next[key] = m ? { lat: m.lat, lon: m.lon, label: m.label, qid: m.qid } : null;
-        progress = `${++done} von ${batch.length}: ${name}`;
+        progress = { done: ++done, total: batch.length, name };
       });
     } catch (e) {
       if (!(e instanceof DOMException && e.name === "AbortError")) lookupError = e instanceof Error ? e.message : String(e);
     } finally {
       saveCache(next); // auch Teilergebnisse behalten
       busy = false;
-      progress = "";
+      progress = null;
     }
   }
 
@@ -173,7 +174,7 @@
     if (selectedPerson && stops.length) fit(stops);
   }
 
-  const kindLabel = { birth: "Geburt", death: "Tod", union: "Heirat/Partnerschaft" } as const;
+  const kindLabel = (k: "birth" | "death" | "union") => t(`map.kind.${k}` as const);
   const polyline = (coords: Coordinates[]) => coords.map((c) => `${c.lon},${-c.lat}`).join(" ");
   // Nur so viele Lebenswege zeichnen, wie die Grenze erlaubt (bei „Alle“ in großen Bäumen sonst Zehntausende)
   const drawnPaths = $derived.by(() => {
@@ -189,38 +190,38 @@
 </script>
 
 {#if !graph || !focusId}
-  <p class="empty">Keine Person gewählt. Im Stammbaum eine Person anklicken oder über die Suche wählen.</p>
+  <p class="empty">{t("common.noPerson")}</p>
 {:else}
   <div class="wrap">
     <aside>
       <div class="controls">
-        <div class="seg" role="group" aria-label="Darstellung">
-          <button class:on={mode === "places"} onclick={() => (mode = "places")}>Orte</button>
-          <button class:on={mode === "paths"} onclick={() => (mode = "paths")}>Lebenswege</button>
+        <div class="seg" role="group" aria-label={t("map.mode.group")}>
+          <button class:on={mode === "places"} onclick={() => (mode = "places")}>{t("map.mode.places")}</button>
+          <button class:on={mode === "paths"} onclick={() => (mode = "paths")}>{t("map.mode.paths")}</button>
         </div>
-        <label>Auswahl
+        <label>{t("common.selection")}
           <select bind:value={scope}>
-            <option value="lineage">Fokus, Vorfahren, Nachfahren</option>
-            <option value="all">Alle Personen</option>
+            <option value="lineage">{t("map.scope.lineage")}</option>
+            <option value="all">{t("tl.scope.all")}</option>
           </select>
         </label>
         {#if scope === "lineage"}
-          <label>Tiefe
-            <select bind:value={depth}>{#each [1, 2, 3, 5, 8, 12, 20] as d}<option value={d}>{d} Generationen</option>{/each}</select>
+          <label>{t("common.depth")}
+            <select bind:value={depth}>{#each [1, 2, 3, 5, 8, 12, 20] as d}<option value={d}>{tn("common.generations", d)}</option>{/each}</select>
           </label>
         {/if}
       </div>
 
       <p class="dim stat">
-        {places.length} Orte, {located.length} mit Koordinaten · {paths.length} Lebenswege
+        {t("map.stat", { places: places.length, located: located.length, paths: paths.length })}
       </p>
       {#if missing.length}
         <div class="lookup">
-          <button onclick={resolveMissing} disabled={busy} title="Sendet nur die Ortsnamen (nicht die Personen) an wikidata.org">
-            {busy ? "Suche läuft …" : `Koordinaten bei Wikidata suchen (${Math.min(missing.length, BATCH)} von ${missing.length})`}
+          <button onclick={resolveMissing} disabled={busy} title={t("map.lookup.title")}>
+            {busy ? t("map.lookup.busy") : t("map.lookup.button", { n: Math.min(missing.length, BATCH), total: missing.length })}
           </button>
-          <small class="dim">Nur Ortsnamen gehen an wikidata.org. Ergebnisse sind vermutet (hohle Marken) und bleiben im Browser.</small>
-          {#if progress}<small class="dim">{progress}</small>{/if}
+          <small class="dim">{t("map.lookup.help")}</small>
+          {#if progress}<small class="dim">{t("map.lookup.progress", progress)}</small>{/if}
           {#if lookupError}<small class="bad" role="alert">{lookupError}</small>{/if}
         </div>
       {/if}
@@ -231,37 +232,37 @@
             <li>
               <button class="row" class:on={selectedKey === p.key} onclick={() => selectPlace(p.key)}>
                 <span class="nm">{p.name}</span>
-                <small class="dim">{p.persons} {p.persons === 1 ? "Person" : "Personen"}{#if !p.coords} · ohne Koordinaten{:else if p.coordsFrom === "lookup"} · vermutet{/if}</small>
+                <small class="dim">{tn("map.persons", p.persons)}{#if !p.coords}{t("map.noCoords")}{:else if p.coordsFrom === "lookup"}{t("map.guess")}{/if}</small>
               </button>
               {#if selectedKey === p.key}
                 <ul class="events">
                   {#each p.events.slice(0, 20) as e}
-                    <li>{kindLabel[e.kind]}{#if e.year} {e.year}{/if}: <button class="link" onclick={() => onPick(e.personId)}>{graph.getPerson(e.personId)?.givenNames ?? ""} {graph.getPerson(e.personId)?.surname ?? ""}</button></li>
+                    <li>{kindLabel(e.kind)}{#if e.year} {e.year}{/if}: <button class="link" onclick={() => onPick(e.personId)}>{graph.getPerson(e.personId)?.givenNames ?? ""} {graph.getPerson(e.personId)?.surname ?? ""}</button></li>
                   {/each}
-                  {#if p.events.length > 20}<li class="dim">… und {p.events.length - 20} weitere</li>{/if}
+                  {#if p.events.length > 20}<li class="dim">{t("map.moreEvents", { n: p.events.length - 20 })}</li>{/if}
                 </ul>
               {/if}
             </li>
           {/each}
-          {#if places.length > LIST_MAX}<li class="dim more">… und {places.length - LIST_MAX} weitere Orte (Auswahl eingrenzen)</li>{/if}
+          {#if places.length > LIST_MAX}<li class="dim more">{t("map.morePlaces", { n: places.length - LIST_MAX })}</li>{/if}
         {:else}
           {#each paths.slice(0, LIST_MAX) as p (p.personId)}
             <li>
               <button class="row" class:on={selectedPerson === p.personId} onclick={() => selectPerson(p.personId)}>
                 <span class="nm"><i class="chip" style:background={lineColor(p.surname)}></i>{p.name}</span>
-                <small class="dim">{p.birthYear ?? "?"}{#if p.deathYear} – {p.deathYear}{/if} · {p.stops.length} {p.stops.length === 1 ? "Ort" : "Orte"}</small>
+                <small class="dim">{p.birthYear ?? "?"}{#if p.deathYear} – {p.deathYear}{/if} · {tn("map.stops", p.stops.length)}</small>
               </button>
               {#if selectedPerson === p.personId}
                 <ol class="events">
-                  {#each p.stops as s}<li>{s.name}{#if s.year} <small class="dim">({kindLabel[s.kind]} {s.year})</small>{:else} <small class="dim">({kindLabel[s.kind]})</small>{/if}{#if !s.coords} <small class="dim">· ohne Koordinaten</small>{/if}</li>{/each}
+                  {#each p.stops as s}<li>{s.name}{#if s.year} <small class="dim">({kindLabel(s.kind)} {s.year})</small>{:else} <small class="dim">({kindLabel(s.kind)})</small>{/if}{#if !s.coords} <small class="dim">{t("map.noCoords").trim()}</small>{/if}</li>{/each}
                 </ol>
-                <button class="link focus" onclick={() => onPick(p.personId)}>Als Fokus wählen</button>
+                <button class="link focus" onclick={() => onPick(p.personId)}>{t("map.pickFocus")}</button>
               {/if}
             </li>
           {/each}
-          {#if paths.length > LIST_MAX}<li class="dim more">… und {paths.length - LIST_MAX} weitere (Auswahl eingrenzen)</li>{/if}
+          {#if paths.length > LIST_MAX}<li class="dim more">{t("map.morePaths", { n: paths.length - LIST_MAX })}</li>{/if}
         {/if}
-        {#if (mode === "places" ? places : paths).length === 0}<li class="dim more">Keine Ortsangaben in dieser Auswahl.</li>{/if}
+        {#if (mode === "places" ? places : paths).length === 0}<li class="dim more">{t("map.empty")}</li>{/if}
       </ul>
     </aside>
 
@@ -271,7 +272,7 @@
         bind:this={svgEl}
         viewBox="{vb.x} {vb.y} {vb.w} {vb.h}"
         role="img"
-        aria-label="Weltkarte mit Orten der Familie"
+        aria-label={t("map.svgLabel")}
         onwheel={onWheel}
         onpointerdown={onDown}
         onpointermove={onMove}
@@ -310,16 +311,16 @@
               role="button" tabindex="-1" aria-label={p.name}
               onclick={() => { mode = "places"; selectPlace(p.key); }} onkeydown={() => {}}
               vector-effect="non-scaling-stroke"
-            ><title>{p.name}: {p.persons} {p.persons === 1 ? "Person" : "Personen"}{p.coordsFrom === "lookup" ? " (Lage vermutet, Wikidata)" : ""}</title></circle>
+            ><title>{p.name}: {tn("map.persons", p.persons)}{p.coordsFrom === "lookup" ? t("map.guessTitle") : ""}</title></circle>
           {/each}
         {/if}
       </svg>
       <div class="zoom">
-        <button onclick={fitAll} title="Alle Orte einpassen">Einpassen</button>
-        <button onclick={() => zoomBy(0.6)} aria-label="Hineinzoomen">+</button>
-        <button onclick={() => zoomBy(1 / 0.6)} aria-label="Herauszoomen">−</button>
+        <button onclick={fitAll} title={t("map.fit.title")}>{t("map.fit")}</button>
+        <button onclick={() => zoomBy(0.6)} aria-label={t("map.zoomIn")}>+</button>
+        <button onclick={() => zoomBy(1 / 0.6)} aria-label={t("map.zoomOut")}>−</button>
       </div>
-      <p class="hint dim">Ziehen = verschieben · Mausrad = zoomen · hohle Marke = Lage vermutet · Karte stark vereinfacht</p>
+      <p class="hint dim">{t("map.hint")}</p>
     </div>
   </div>
 {/if}

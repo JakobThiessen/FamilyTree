@@ -41,10 +41,16 @@ export function lineColor(surname: string | undefined): string {
   return LINE_COLORS[hash(s) % LINE_COLORS.length] as string;
 }
 
+/** Text für Personen ganz ohne Namen; die Oberfläche setzt ihn je nach Sprache (D34). */
+let unknownName = "Unbekannt";
+export function setUnknownName(label: string): void {
+  unknownName = label;
+}
+
 export function displayName(p: Person | undefined): string {
   if (!p) return "?";
   const name = [p.givenNames, p.surname].filter(Boolean).join(" ").trim();
-  return name || "Unbekannt";
+  return name || unknownName;
 }
 
 /** Person ohne jeden Namen oder ausdrücklich als „unbekannt“ markiert (Filter „Unbekannte Personen“). */

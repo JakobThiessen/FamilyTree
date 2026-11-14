@@ -1,7 +1,8 @@
 <script lang="ts">
   // Detailfenster der Fokusperson: Ereignisse mit Quellen, Notizen, Status, Familie (anklickbar).
   import type { PersonId } from "../core";
-  import { STATUS_LABEL } from "./personInfo";
+  import { STATUS_KEY } from "./personInfo";
+  import { t } from "./lang.svelte";
   import type { PersonInfo, RelativeRef } from "./personInfo";
 
   let { info, onPick }: { info: PersonInfo | null; onPick: (id: PersonId) => void } = $props();
@@ -13,12 +14,12 @@
   {#if r.note}<small class="tag">{r.note}</small>{/if}
 {/snippet}
 
-{#snippet badge(s: keyof typeof STATUS_LABEL)}
-  <span class="badge {s}">{STATUS_LABEL[s]}</span>
+{#snippet badge(s: keyof typeof STATUS_KEY)}
+  <span class="badge {s}">{t(STATUS_KEY[s])}</span>
 {/snippet}
 
 {#if !info}
-  <p class="dim">Keine Person gewählt.</p>
+  <p class="dim">{t("person.none")}</p>
 {:else}
   <article>
     <h2>{info.name}</h2>
@@ -32,7 +33,7 @@
           <ul class="plain">
             {#each ev.citations as c}
               <li>
-                Quelle:
+                {t("person.source")}
                 {#if c.url}<a href={c.url} target="_blank" rel="noopener noreferrer">{c.title}</a>{:else}{c.title}{/if}
                 {#if c.detail}<small>({c.detail})</small>{/if}
               </li>
@@ -44,17 +45,17 @@
 
     {#if info.notes.length}
       <section>
-        <h3>Notizen</h3>
+        <h3>{t("person.notes")}</h3>
         {#each info.notes as n}<p class="note">{n}</p>{/each}
       </section>
     {/if}
 
     {#if info.parentFamilies.length}
       <section>
-        <h3>Eltern</h3>
+        <h3>{t("person.parents")}</h3>
         {#each info.parentFamilies as f}
           <p>
-            {#each f.parents as r, i}{#if i}<span class="dim amp">&amp;</span>{/if}{@render rel(r)}{:else}<span class="dim">unbekannt</span>{/each}
+            {#each f.parents as r, i}{#if i}<span class="dim amp">&amp;</span>{/if}{@render rel(r)}{:else}<span class="dim">{t("person.parentsUnknown")}</span>{/each}
             {#if f.note}<small class="tag">{f.note}</small>{/if}
           </p>
         {/each}
@@ -65,12 +66,12 @@
       <section>
         <h3>{u.title} {@render badge(u.status)}</h3>
         <p>
-          {#if u.partner}{@render rel(u.partner)}{:else}<span class="dim">Partner unbekannt</span>{/if}
+          {#if u.partner}{@render rel(u.partner)}{:else}<span class="dim">{t("person.partnerUnknown")}</span>{/if}
           {#if u.period}<small>{u.period}</small>{/if}
         </p>
         {#if u.children.length}
           <ul class="plain">
-            {#each u.children as c}<li>Kind: {@render rel(c)}</li>{/each}
+            {#each u.children as c}<li>{t("person.child")}{@render rel(c)}</li>{/each}
           </ul>
         {/if}
       </section>
@@ -78,17 +79,17 @@
 
     {#if info.siblings.full.length || info.siblings.half.length}
       <section>
-        <h3>Geschwister</h3>
+        <h3>{t("person.siblings")}</h3>
         <ul class="plain">
           {#each info.siblings.full as r}<li>{@render rel(r)}</li>{/each}
-          {#each info.siblings.half as r}<li>{@render rel(r)} <small class="tag">Halbgeschwister</small></li>{/each}
+          {#each info.siblings.half as r}<li>{@render rel(r)} <small class="tag">{t("person.halfSibling")}</small></li>{/each}
         </ul>
       </section>
     {/if}
 
     {#if info.externalRefs.length}
       <section>
-        <h3>Kennungen</h3>
+        <h3>{t("person.ids")}</h3>
         <p class="dim">{info.externalRefs.join(" · ")}</p>
       </section>
     {/if}

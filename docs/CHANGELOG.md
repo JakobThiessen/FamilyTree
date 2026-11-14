@@ -4,6 +4,18 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (Doku und Lizenz)
+- `LICENSE` (MIT) und `"license": "MIT"` in `package.json`
+- `LIZENZ.md`: Lizenzübersicht der Abhängigkeiten (ISC, MIT, Apache-2.0, MPL-2.0 nur in Werkzeugen) und Datenquellen
+- `README.md`: Abschnitt „Bilder“ mit vier Aufnahmen (`docs/screenshots/`), Abschnitt „Lizenz“ verweist auf `LICENSE` und `LIZENZ.md`
+
+### Hinzugefügt (M9, Schritt 3: DE/EN)
+- Sprachumschalter in der Kopfleiste ist aktiv (D34): `src/ui/i18n.ts`, `lang.svelte.ts`, Wörterbücher `locales/de.ts` / `en.ts`; Wahl bleibt gespeichert, `<html lang>` folgt
+- Alle Texte der Oberfläche in Deutsch und Englisch (Kopfleiste, Import/Backup, Filterpanel, Personendetails, Suche, Online-Dialog, Ahnen, Zeitleiste, Karte)
+- Kern: `formatFuzzyDate(d, lang)`, `describeRelationship`/`bloodRelationLabel` mit `lang` (englische Verwandtschaftsbezeichnungen), `TimelineMarker.who`
+- `TreeView.refreshLabels()`, `setUnknownName`; Tests `tests/ui/i18n.test.ts` (gleiche Schlüssel und Platzhalter, Mehrzahl, Daten, Verwandtschaft)
+- Im Browser geprüft: Wechsel auf EN mit `migration.json` in allen vier Reitern, Persistenz nach Neuladen
+
 ### Hinzugefügt (M9, Schritt 2: Export)
 - `src/render/svgExport.ts` (D33): `sceneToSvg`, `xmlEscape` – SVG der ganzen Ansicht, hell (Druck) oder dunkel
 - Reiter Stammbaum: Knöpfe „SVG“ (Datei) und „Druck“ (Druckdialog, PDF über „Als PDF speichern“), Druck-Stil in `app.css`

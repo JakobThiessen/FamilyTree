@@ -4,6 +4,8 @@
   import { pedigreeReport } from "../core";
   import type { FamilyGraph, Person, PersonId } from "../core";
   import { displayName, lifeSpan } from "../render/style";
+  import { fmt, t, tn } from "./lang.svelte";
+  import type { MessageKey } from "./i18n";
 
   let {
     graph,
@@ -26,65 +28,64 @@
 
   const name = (id: PersonId) => displayName(persons.get(id));
   const span = (id: PersonId) => lifeSpan(persons.get(id));
-  const GEN_NAMES = ["Person", "Eltern", "Großeltern", "Urgroßeltern"];
-  const genLabel = (n: number) => (n <= 3 ? GEN_NAMES[n] ?? "" : n === 4 ? "Ururgroßeltern" : `${n - 2}× Urgroßeltern`);
-  const percent = (x: number) => (x * 100).toLocaleString("de-DE", { maximumFractionDigits: 2 }) + " %";
+  const genLabel = (n: number) => (n <= 4 ? t(`anc.gen.${n}` as MessageKey) : t("anc.gen.more", { n: n - 2 }));
+  const percent = (x: number) => fmt(x * 100, { maximumFractionDigits: 2 }) + " %";
 </script>
 
 {#if !report}
-  <p class="empty">Keine Person gewählt. Im Stammbaum eine Person anklicken oder über die Suche wählen.</p>
+  <p class="empty">{t("common.noPerson")}</p>
 {:else}
   <div class="wrap">
     <header>
-      <h2>Ahnen von {name(focusId)} <small>{span(focusId)}</small></h2>
-      <label>Tiefe
-        <select bind:value={depth}>{#each DEPTHS as d}<option value={d}>{d} Generationen</option>{/each}</select>
+      <h2>{t("anc.heading", { name: name(focusId) })} <small>{span(focusId)}</small></h2>
+      <label>{t("common.depth")}
+        <select bind:value={depth}>{#each DEPTHS as d}<option value={d}>{tn("common.generations", d)}</option>{/each}</select>
       </label>
     </header>
 
     <section class="summary">
-      <div><b>{report.tafel.rowCount - 1}</b><span>Ahnenplätze (bekannt)</span></div>
-      <div><b>{report.collapse.repeated.length}</b><span>doppelte Ahnen</span></div>
-      <div title="Anteil der Ahnenplätze, die durch einen schon gezählten Ahn belegt sind"><b>{percent(report.collapse.implex)}</b><span>Ahnenverlust (Implex)</span></div>
-      <div title="Wahrscheinlichkeit, dass beide Erbanlagen von demselben Ahn stammen (Wright)"><b>{percent(report.inbreeding)}</b><span>Inzuchtkoeffizient</span></div>
+      <div><b>{report.tafel.rowCount - 1}</b><span>{t("anc.slots")}</span></div>
+      <div><b>{report.collapse.repeated.length}</b><span>{t("anc.repeated")}</span></div>
+      <div title={t("anc.implex.title")}><b>{percent(report.collapse.implex)}</b><span>{t("anc.implex")}</span></div>
+      <div title={t("anc.inbreeding.title")}><b>{percent(report.inbreeding)}</b><span>{t("anc.inbreeding")}</span></div>
     </section>
     {#if report.tafel.truncated}
-      <p class="warn" role="status">Mehr als {MAX_ROWS} Zeilen: die Tafel ist abgeschnitten. Tiefe verringern.</p>
+      <p class="warn" role="status">{t("anc.truncated", { max: MAX_ROWS })}</p>
     {/if}
 
     {#if report.collapse.repeated.length}
       <section>
-        <h3>Ahnenschwund</h3>
-        <p class="dim">Diese Personen kommen auf mehreren Wegen unter den Vorfahren vor (z. B. nach einer Heirat unter Verwandten).</p>
+        <h3>{t("anc.collapse")}</h3>
+        <p class="dim">{t("anc.collapseHelp")}</p>
         <ul class="plain">
           {#each report.collapse.repeated.slice(0, 50) as r (r.id)}
             <li>
               <button class="link" onclick={() => onPick(r.id)}>{name(r.id)}</button>
-              <small>{r.pathCount} Wege, in Generation {r.depths.join(", ")}</small>
+              <small>{t("anc.paths", { paths: r.pathCount, gens: r.depths.join(", ") })}</small>
             </li>
           {/each}
         </ul>
-        {#if report.collapse.repeated.length > 50}<p class="dim">… und {report.collapse.repeated.length - 50} weitere.</p>{/if}
+        {#if report.collapse.repeated.length > 50}<p class="dim">{t("anc.moreRepeated", { n: report.collapse.repeated.length - 50 })}</p>{/if}
       </section>
     {/if}
 
     <section>
-      <h3>Ahnentafel</h3>
+      <h3>{t("anc.tafel")}</h3>
       {#each report.tafel.generations as gen (gen.generation)}
         <h4>
-          {gen.generation === 0 ? "Person" : `Generation ${gen.generation}`}
+          {gen.generation === 0 ? t("anc.gen.person") : t("anc.gen.n", { n: gen.generation })}
           {#if genLabel(gen.generation) && gen.generation > 0}<small>· {genLabel(gen.generation)}</small>{/if}
-          <small>· {gen.known} von {gen.slots.toLocaleString("de-DE")} Plätzen bekannt</small>
+          <small>· {t("anc.known", { known: gen.known, slots: fmt(gen.slots) })}</small>
         </h4>
         <table>
-          <thead><tr><th>Sosa</th><th>Name</th><th>Lebensspanne</th></tr></thead>
+          <thead><tr><th>{t("anc.th.sosa")}</th><th>{t("anc.th.name")}</th><th>{t("anc.th.span")}</th></tr></thead>
           <tbody>
             {#each gen.rows as row (row.sosa)}
               <tr class:dup={row.duplicateOf !== undefined}>
                 <td class="num">{row.sosa}</td>
                 <td>
                   <button class="link" onclick={() => onPick(row.personId)}>{name(row.personId)}</button>
-                  {#if row.duplicateOf !== undefined}<small class="tag">siehe Nr. {row.duplicateOf}</small>{/if}
+                  {#if row.duplicateOf !== undefined}<small class="tag">{t("anc.see", { n: row.duplicateOf })}</small>{/if}
                 </td>
                 <td class="dim">{span(row.personId)}</td>
               </tr>

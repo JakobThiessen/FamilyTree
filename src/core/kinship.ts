@@ -7,8 +7,14 @@
  */
 
 import type { DepthOptions } from "./ancestry";
+import type { DisplayLang } from "./fuzzyDate";
 import type { FamilyGraph } from "./graph";
 import type { PersonId, Sex, UnionId } from "./types";
+
+/** Optionen der Bezeichnungen: wie `DepthOptions`, dazu die Sprache (Standard Deutsch, D34). */
+export interface RelationOptions extends DepthOptions {
+  lang?: DisplayLang;
+}
 
 // ------------------------------------------------------------ gemeinsame Vorfahren
 
@@ -140,7 +146,11 @@ const generations = (n: number): string => `${n} Generation${n === 1 ? "" : "en"
  * (2,1) Neffe · (2,2) Cousin 1. Grades · (3,2) Cousin 1. Grades, 1 Generation versetzt ·
  * (3,3) Cousin 2. Grades.
  */
-export function bloodRelationLabel(up: number, down: number, sex: Sex = "U", half = false): string {
+export function bloodRelationLabel(up: number, down: number, sex: Sex = "U", half = false, lang: DisplayLang = "de"): string {
+  if (lang === "en") {
+    const en = rawLabelEn(up, down, sex);
+    return half ? `Half-${lowerFirst(en)}` : en;
+  }
   const label = rawLabel(up, down, sex);
   return half ? `Halb${lowerFirst(label)}` : label;
 }
@@ -176,6 +186,60 @@ function rawLabel(up: number, down: number, sex: Sex): string {
   const removed = Math.abs(up - down);
   const text = `${T.cousin[sex]} ${degree}. Grades`;
   return removed === 0 ? text : `${text}, ${generations(removed)} versetzt`;
+}
+
+
+// ------------------------------------------------------------ Bezeichnungen (Englisch, D34)
+
+const EN = {
+  parent: { M: "Father", F: "Mother", U: "Parent" },
+  grandparent: { M: "grandfather", F: "grandmother", U: "grandparent" },
+  child: { M: "Son", F: "Daughter", U: "Child" },
+  grandchild: { M: "grandson", F: "granddaughter", U: "grandchild" },
+  sibling: { M: "Brother", F: "Sister", U: "Sibling" },
+  uncle: { M: "uncle", F: "aunt", U: "uncle/aunt" },
+  nephew: { M: "nephew", F: "niece", U: "nephew/niece" },
+  partner: { M: "Husband", F: "Wife", U: "Spouse" },
+  childInLaw: { M: "Son-in-law", F: "Daughter-in-law", U: "Child-in-law" },
+  parentInLaw: { M: "Father-in-law", F: "Mother-in-law", U: "Parent-in-law" },
+  stepParent: { M: "Stepfather", F: "Stepmother", U: "Stepparent" },
+  stepChild: { M: "Stepson", F: "Stepdaughter", U: "Stepchild" },
+  siblingInLaw: { M: "Brother-in-law", F: "Sister-in-law", U: "Sibling-in-law" },
+} satisfies Record<string, Terms>;
+
+const greats = (n: number): string => "great-".repeat(Math.max(n, 0));
+const ordinalEn = (n: number): string => {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10 < 4 ? n % 10 : 0]}`;
+};
+const timesEn = (n: number): string => (n === 1 ? "once" : n === 2 ? "twice" : `${n} times`);
+
+function rawLabelEn(up: number, down: number, sex: Sex): string {
+  if (up === 0 && down === 0) return "same person";
+  if (up === 0) {
+    if (down === 1) return EN.parent[sex];
+    if (down > MAX_NAMED_DISTANCE) return `Ancestor (${down} generations away)`;
+    return cap(`${greats(down - 2)}${EN.grandparent[sex]}`);
+  }
+  if (down === 0) {
+    if (up === 1) return EN.child[sex];
+    if (up > MAX_NAMED_DISTANCE) return `Descendant (${up} generations away)`;
+    return cap(`${greats(up - 2)}${EN.grandchild[sex]}`);
+  }
+  if (up === 1 && down === 1) return EN.sibling[sex];
+  if (up === 1 || down === 1) {
+    const uncleSide = up === 1;
+    const n = uncleSide ? down : up;
+    const base = uncleSide ? EN.uncle[sex] : EN.nephew[sex];
+    if (n === 2) return cap(base);
+    if (n > MAX_NAMED_DISTANCE) return `${cap(base)} (${n - 1} generations away)`;
+    return cap(`${greats(n - 2)}${base}`);
+  }
+  const degree = Math.min(up, down) - 1;
+  const removed = Math.abs(up - down);
+  const text = `${ordinalEn(degree)} cousin`;
+  return removed === 0 ? text : `${text}, ${timesEn(removed)} removed`;
 }
 
 // ------------------------------------------------------------ Verwandtschaft A ↔ B
@@ -252,7 +316,7 @@ function unionsToAncestors(
 }
 
 /** Alle Blutsverwandtschaftslinien zwischen A und B (leer, wenn keine). */
-function bloodLines(g: FamilyGraph, a: PersonId, b: PersonId, opts: DepthOptions): BloodLine[] {
+function bloodLines(g: FamilyGraph, a: PersonId, b: PersonId, opts: RelationOptions): BloodLine[] {
   const lowest = findCommonAncestors(g, a, b, opts).filter((c) => c.lowest);
   if (lowest.length === 0) return [];
 
@@ -288,20 +352,25 @@ function bloodLines(g: FamilyGraph, a: PersonId, b: PersonId, opts: DepthOptions
       up: c.distA,
       down: c.distB,
       half,
-      label: bloodRelationLabel(c.distA, c.distB, sex, half),
+      label: bloodRelationLabel(c.distA, c.distB, sex, half, opts.lang),
     });
   }
   return lines;
 }
 
 /** Fasst gleiche Bezeichnungen zusammen: zweimal „Cousin 1. Grades“ → „… (doppelt)“. */
-function joinLabels(labels: string[]): string[] {
+function joinLabels(labels: string[], lang: DisplayLang): string[] {
   const counts = new Map<string, number>();
   for (const l of labels) counts.set(l, (counts.get(l) ?? 0) + 1);
-  return [...counts].map(([l, n]) => (n === 1 ? l : `${l} (${n === 2 ? "doppelt" : `${n}-fach`})`));
+  const times = (n: number): string => (lang === "en" ? (n === 2 ? "twice" : `${n} times`) : n === 2 ? "doppelt" : `${n}-fach`);
+  return [...counts].map(([l, n]) => (n === 1 ? l : `${l} (${times(n)})`));
 }
 
-function partnerLabel(sex: Sex, married: boolean, divorced: boolean): string {
+function partnerLabel(sex: Sex, married: boolean, divorced: boolean, lang: DisplayLang): string {
+  if (lang === "en") {
+    const en = married ? EN.partner[sex] : "Partner";
+    return divorced ? `Ex-${lowerFirst(en)}` : en;
+  }
   const base = married
     ? { M: "Ehemann", F: "Ehefrau", U: "Ehepartner" }[sex]
     : { M: "Partner", F: "Partnerin", U: "Partner" }[sex];
@@ -319,8 +388,11 @@ const inLawTerms = {
 } satisfies Record<string, Terms>;
 
 /** Verwandtschaft durch Heirat. Nur sinnvoll, wenn keine Blutsverwandtschaft besteht. */
-function inLawLinks(g: FamilyGraph, a: PersonId, b: PersonId, opts: DepthOptions): InLawLink[] {
+function inLawLinks(g: FamilyGraph, a: PersonId, b: PersonId, opts: RelationOptions): InLawLink[] {
   const sexA = g.getPerson(a)?.sex ?? "U";
+  const en = opts.lang === "en";
+  const bro = (): string => (en ? EN.siblingInLaw[sexA] : schwager(sexA));
+  const term = (t: keyof typeof inLawTerms): string => (en ? EN[t][sexA] : inLawTerms[t][sexA]);
   const links: InLawLink[] = [];
   const seen = new Set<string>();
   const add = (via: PersonId, label: string): void => {
@@ -334,27 +406,33 @@ function inLawLinks(g: FamilyGraph, a: PersonId, b: PersonId, opts: DepthOptions
   for (const pa of g.partners(a)) {
     for (const line of bloodLines(g, pa, b, opts)) {
       const { up, down } = line;
-      if (up === 1 && down === 1) add(pa, schwager(sexA));
-      else if (up === 1 && down === 0) add(pa, inLawTerms.childInLaw[sexA]);
-      else if (up === 0 && down === 1) add(pa, inLawTerms.stepParent[sexA]);
-      else add(pa, `Partner von ${bloodRelationLabel(up, down, g.getPerson(pa)?.sex ?? "U")}`);
+      if (up === 1 && down === 1) add(pa, bro());
+      else if (up === 1 && down === 0) add(pa, term("childInLaw"));
+      else if (up === 0 && down === 1) add(pa, term("stepParent"));
+      else {
+        const rel = bloodRelationLabel(up, down, g.getPerson(pa)?.sex ?? "U", false, opts.lang);
+        add(pa, en ? `Partner of ${lowerFirst(rel)}` : `Partner von ${rel}`);
+      }
     }
   }
   // Über die Partner von B: A ist mit einem Blutsverwandten des Partners von B verwandt
   for (const pb of g.partners(b)) {
     for (const line of bloodLines(g, a, pb, opts)) {
       const { up, down } = line;
-      if (up === 1 && down === 1) add(pb, schwager(sexA));
-      else if (up === 0 && down === 1) add(pb, inLawTerms.parentInLaw[sexA]);
-      else if (up === 1 && down === 0) add(pb, inLawTerms.stepChild[sexA]);
-      else add(pb, `${bloodRelationLabel(up, down, sexA)} des Partners`);
+      if (up === 1 && down === 1) add(pb, bro());
+      else if (up === 0 && down === 1) add(pb, term("parentInLaw"));
+      else if (up === 1 && down === 0) add(pb, term("stepChild"));
+      else {
+        const rel = bloodRelationLabel(up, down, sexA, false, opts.lang);
+        add(pb, en ? `Partner's ${lowerFirst(rel)}` : `${rel} des Partners`);
+      }
     }
   }
   // Schwippschwager: die Partner von A und B sind Geschwister
   for (const pa of g.partners(a)) {
     for (const pb of g.partners(b)) {
       if (pa === pb) continue;
-      if (bloodLines(g, pa, pb, opts).some((l) => l.up === 1 && l.down === 1)) add(pb, schwippschwager(sexA));
+      if (bloodLines(g, pa, pb, opts).some((l) => l.up === 1 && l.down === 1)) add(pb, en ? "Spouse's sibling's spouse" : schwippschwager(sexA));
     }
   }
   return links;
@@ -368,11 +446,12 @@ export function describeRelationship(
   g: FamilyGraph,
   a: PersonId,
   b: PersonId,
-  opts: DepthOptions = {},
+  opts: RelationOptions = {},
 ): Relationship {
-  const none: Relationship = { a, b, same: false, blood: [], inLaw: [], label: "nicht verwandt" };
+  const lang = opts.lang ?? "de";
+  const none: Relationship = { a, b, same: false, blood: [], inLaw: [], label: lang === "en" ? "not related" : "nicht verwandt" };
   if (!g.hasPerson(a) || !g.hasPerson(b)) return none;
-  if (a === b) return { ...none, same: true, label: "dieselbe Person" };
+  if (a === b) return { ...none, same: true, label: lang === "en" ? "same person" : "dieselbe Person" };
 
   const sexA = g.getPerson(a)?.sex ?? "U";
   const blood = bloodLines(g, a, b, opts);
@@ -381,7 +460,7 @@ export function describeRelationship(
   const partner = union
     ? {
         unionId: union.id,
-        label: partnerLabel(sexA, union.kind === "marriage", union.endReason === "divorce"),
+        label: partnerLabel(sexA, union.kind === "marriage", union.endReason === "divorce", lang),
       }
     : undefined;
 
@@ -389,7 +468,7 @@ export function describeRelationship(
 
   const parts = [
     ...(partner ? [partner.label] : []),
-    ...joinLabels(blood.map((l) => l.label)),
+    ...joinLabels(blood.map((l) => l.label), lang),
     ...inLaw.map((l) => l.label),
   ];
   const result: Relationship = { a, b, same: false, blood, inLaw, label: parts.join(", ") || none.label };

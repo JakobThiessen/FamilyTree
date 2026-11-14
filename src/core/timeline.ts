@@ -21,8 +21,10 @@ export type MarkerKind = "union" | "child";
 export interface TimelineMarker {
   year: number;
   kind: MarkerKind;
-  /** z. B. „Heirat mit Anna Muster“ oder „Geburt von Karl“ */
+  /** z. B. „Heirat mit Anna Muster“ oder „Geburt von Karl“ (deutsch; die Oberfläche baut ihren Text selbst aus `kind` und `who`) */
   label: string;
+  /** Name des Partners (Heirat) bzw. des Kindes, falls bekannt */
+  who?: string;
 }
 
 export interface TimelineRow {
@@ -166,11 +168,11 @@ export function buildTimeline(g: FamilyGraph, ids: Iterable<PersonId>, opts: Tim
       const year = point(dateRange(u.start?.date));
       if (year !== null) {
         const partner = u.partnerIds.find((x) => x !== id);
-        markers.push({ year, kind: "union", label: `Heirat${partner ? " mit " + personName(g.getPerson(partner)) : ""}` });
+        markers.push({ year, kind: "union", label: `Heirat${partner ? " mit " + personName(g.getPerson(partner)) : ""}`, ...(partner ? { who: personName(g.getPerson(partner)) } : {}) });
       }
       for (const c of u.children) {
         const cy = birthOf(c.personId);
-        if (cy !== null) markers.push({ year: cy, kind: "child", label: `Geburt von ${personName(g.getPerson(c.personId))}` });
+        if (cy !== null) markers.push({ year: cy, kind: "child", label: `Geburt von ${personName(g.getPerson(c.personId))}`, who: personName(g.getPerson(c.personId)) });
       }
     }
     markers.sort((a, b) => a.year - b.year);

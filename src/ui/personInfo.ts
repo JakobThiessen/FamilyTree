@@ -5,19 +5,20 @@
 import { formatFuzzyDate } from "../core";
 import type { ChildLinkKind, FamilyGraph, LifeEvent, PersonId, Sex, Source, Status, Union } from "../core";
 import { displayName, lifeSpan } from "../render/style";
+import { translate } from "./i18n";
+import type { Lang, MessageKey } from "./i18n";
 
-export const STATUS_LABEL: Record<Status, string> = {
-  proven: "belegt",
-  assumed: "vermutet",
-  unknown: "unbekannt",
+/** Schlüssel der Statusbezeichnungen (Text je Sprache über `translate`). */
+export const STATUS_KEY: Record<Status, MessageKey> = {
+  proven: "person.status.proven",
+  assumed: "person.status.assumed",
+  unknown: "person.status.unknown",
 };
 
-const SEX_LABEL: Record<Sex, string> = { M: "männlich", F: "weiblich", U: "unbekannt" };
-const KIND_LABEL: Record<ChildLinkKind, string> = {
-  biological: "leiblich",
-  adopted: "adoptiert",
-  foster: "Pflegekind",
-  unknown: "Art unbekannt",
+const KIND_KEY: Record<Exclude<ChildLinkKind, "biological">, MessageKey> = {
+  adopted: "person.link.adopted",
+  foster: "person.link.foster",
+  unknown: "person.link.unknown",
 };
 
 export interface RelativeRef {
@@ -75,33 +76,36 @@ export interface PersonInfo {
 const safeUrl = (u: string | undefined): string | undefined => (u && /^https?:\/\//i.test(u) ? u : undefined);
 
 /** „adoptiert, vermutet“ aus Art und Status einer Verknüpfung; leer bei leiblich und belegt. */
-function linkNote(kind: ChildLinkKind, status: Status | undefined): string {
-  return [kind === "biological" ? "" : KIND_LABEL[kind], status && status !== "proven" ? STATUS_LABEL[status] : ""]
+function linkNote(kind: ChildLinkKind, status: Status | undefined, lang: Lang): string {
+  return [
+    kind === "biological" ? "" : translate(lang, KIND_KEY[kind]),
+    status && status !== "proven" ? translate(lang, STATUS_KEY[status]) : "",
+  ]
     .filter(Boolean)
     .join(", ");
 }
 
-function eventInfo(label: string, ev: LifeEvent | undefined, sources: ReadonlyMap<string, Source>): EventInfo | null {
+function eventInfo(label: string, ev: LifeEvent | undefined, sources: ReadonlyMap<string, Source>, lang: Lang): EventInfo | null {
   if (!ev) return null;
   return {
     label,
-    date: formatFuzzyDate(ev.date),
+    date: formatFuzzyDate(ev.date, lang),
     place: ev.place?.name,
     status: ev.status ?? "proven",
     citations: (ev.citations ?? []).map((c) => {
       const s = sources.get(c.sourceId);
-      return { title: s?.title ?? `Quelle ${c.sourceId}`, detail: c.detail, url: safeUrl(s?.url) };
+      return { title: s?.title ?? translate(lang, "person.sourceUnnamed", { id: c.sourceId }), detail: c.detail, url: safeUrl(s?.url) };
     }),
   };
 }
 
-function unionPeriod(u: Union): string {
-  const start = u.start ? formatFuzzyDate(u.start.date) : "";
-  const end = u.end ? formatFuzzyDate(u.end.date) : "";
-  const reason = u.endReason === "divorce" ? "geschieden" : u.endReason === "death" ? "Tod" : "";
+function unionPeriod(u: Union, lang: Lang): string {
+  const start = u.start ? formatFuzzyDate(u.start.date, lang) : "";
+  const end = u.end ? formatFuzzyDate(u.end.date, lang) : "";
+  const reason = u.endReason === "divorce" ? translate(lang, "person.union.divorced") : u.endReason === "death" ? translate(lang, "person.union.death") : "";
   if (start && end) return `${start} – ${end}${reason ? ` (${reason})` : ""}`;
   if (start) return start;
-  if (end) return `bis ${end}${reason ? ` (${reason})` : ""}`;
+  if (end) return `${translate(lang, "person.union.until", { date: end })}${reason ? ` (${reason})` : ""}`;
   return reason;
 }
 
@@ -110,6 +114,7 @@ export function describePerson(
   graph: FamilyGraph,
   sources: ReadonlyMap<string, Source>,
   id: PersonId,
+  lang: Lang = "de",
 ): PersonInfo | null {
   const p = graph.getPerson(id);
   if (!p) return null;
@@ -120,34 +125,34 @@ export function describePerson(
   };
 
   const parentFamilies = graph.parentLinks(id).map(({ union, link }) => ({
-    note: linkNote(link.kind, link.status),
+    note: linkNote(link.kind, link.status, lang),
     parents: union.partnerIds.filter((x) => graph.hasPerson(x)).map((x) => ref(x)),
   }));
 
   const unions = graph.unionsOf(id).map((u) => {
-    const kindLabel = u.kind === "marriage" ? "Ehe" : u.kind === "partnership" ? "Partnerschaft" : "Verbindung";
+    const kindLabel = translate(lang, u.kind === "marriage" ? "person.union.marriage" : u.kind === "partnership" ? "person.union.partnership" : "person.union.other");
     const partnerId = u.partnerIds.find((x) => x !== id && graph.hasPerson(x));
     return {
       id: u.id,
-      title: u.order ? `${u.order}. ${kindLabel}` : kindLabel,
+      title: u.order ? translate(lang, "person.union.ordered", { order: u.order, kind: kindLabel }) : kindLabel,
       status: u.status ?? "proven",
       partner: partnerId ? ref(partnerId) : undefined,
-      period: unionPeriod(u),
+      period: unionPeriod(u, lang),
       children: u.children
         .filter((c) => graph.hasPerson(c.personId))
-        .map((c) => ref(c.personId, linkNote(c.kind, c.status))),
+        .map((c) => ref(c.personId, linkNote(c.kind, c.status, lang))),
     };
   });
 
   const sib = graph.siblings(id);
-  const events = [eventInfo("Geburt", p.birth, sources), eventInfo("Tod", p.death, sources)].filter(
+  const events = [eventInfo(translate(lang, "person.event.birth"), p.birth, sources, lang), eventInfo(translate(lang, "person.event.death"), p.death, sources, lang)].filter(
     (e): e is EventInfo => e !== null,
   );
 
   return {
     id,
     name: displayName(p),
-    sex: SEX_LABEL[p.sex],
+    sex: translate(lang, `person.sex.${p.sex}` as MessageKey),
     span: lifeSpan(p),
     status: p.status ?? "proven",
     events,

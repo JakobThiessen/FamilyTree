@@ -6,6 +6,7 @@
   import type { TreeData } from "../core";
   import type { ImportResult } from "../import/gedcomImport";
   import { parseBackup, serializeBackup } from "../import/backup";
+  import { fmt, t, tn } from "./lang.svelte";
   import { importFileInWorker } from "../workers/importClient";
   import type { TreeMeta, TreeStore } from "../storage";
 
@@ -57,7 +58,7 @@
     try {
       const r = await importFileInWorker(file);
       fileName = file.name;
-      saveName = file.name.replace(/\.[^.]+$/, "") || "Stammbaum";
+      saveName = file.name.replace(/\.[^.]+$/, "") || t("import.defaultName");
       issues = new FamilyGraph(r.data).validate().map((i) => `${i.code}: ${i.message}`);
       result = r;
     } catch (e) {
@@ -84,7 +85,7 @@
       onShow(result.data, meta.name, meta.id);
       reset();
     } catch (e) {
-      error = "Speichern fehlgeschlagen: " + errText(e);
+      error = t("import.saveFailed", { error: errText(e) });
     } finally {
       busy = false;
     }
@@ -96,12 +97,12 @@
     dialog.close();
   }
 
-  async function openSaved(t: TreeMeta) {
+  async function openSaved(tree: TreeMeta) {
     if (!store) return;
     busy = true;
     error = "";
     try {
-      onShow(await store.loadTree(t.id), t.name, t.id);
+      onShow(await store.loadTree(tree.id), tree.name, tree.id);
       dialog.close();
     } catch (e) {
       error = errText(e);
@@ -123,9 +124,9 @@
       a.download = `familytree-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      info = `${trees.length} Baum/Bäume gesichert.`;
+      info = tn("import.backupDone", trees.length);
     } catch (e) {
-      error = "Sichern fehlgeschlagen: " + errText(e);
+      error = t("import.backupFailed", { error: errText(e) });
     } finally {
       busy = false;
     }
@@ -140,100 +141,100 @@
       const trees = parseBackup(await file.text());
       await store.restoreAll(trees);
       await onSaved();
-      info = `${trees.length} Baum/Bäume eingespielt (zusätzlich zu den vorhandenen).`;
+      info = tn("import.restoreDone", trees.length);
     } catch (e) {
-      error = "Einspielen fehlgeschlagen: " + errText(e);
+      error = t("import.restoreFailed", { error: errText(e) });
     } finally {
       busy = false;
     }
   }
 
-  async function renameSaved(t: TreeMeta) {
-    const name = prompt("Neuer Name:", t.name);
+  async function renameSaved(tree: TreeMeta) {
+    const name = prompt(t("import.newName"), tree.name);
     if (!store || name === null) return;
-    await store.renameTree(t.id, name);
+    await store.renameTree(tree.id, name);
     await onSaved();
   }
 
-  async function deleteSaved(t: TreeMeta) {
-    if (!store || !confirm(`„${t.name}“ endgültig löschen?`)) return;
-    await store.deleteTree(t.id);
+  async function deleteSaved(tree: TreeMeta) {
+    if (!store || !confirm(t("import.confirmDelete", { name: tree.name }))) return;
+    await store.deleteTree(tree.id);
     await onSaved();
   }
 </script>
 
 <dialog bind:this={dialog} oncancel={(e) => { if (!canClose) e.preventDefault(); }} aria-labelledby="import-title">
   <header>
-    <h2 id="import-title">{result ? "Import prüfen" : "Stammbaum öffnen"}</h2>
-    {#if canClose}<button onclick={() => dialog.close()} aria-label="Schließen">✕</button>{/if}
+    <h2 id="import-title">{result ? t("import.title.check") : t("import.title.open")}</h2>
+    {#if canClose}<button onclick={() => dialog.close()} aria-label={t("import.close")}>✕</button>{/if}
   </header>
 
-  {#if error}<p class="error" role="alert">Fehler: {error}</p>{/if}
+  {#if error}<p class="error" role="alert">{t("import.error", { error })}</p>{/if}
   {#if storageError}<p class="error" role="alert">{storageError}</p>{/if}
 
   {#if result}
     {@const d = result.data}
     <p>
-      <strong>{fileName}</strong>: {d.persons.length} Personen, {d.unions.length} Partnerschaften, {d.sources.length} Quellen
-      {#if result.charset}<small>(Zeichensatz: {result.charset})</small>{/if}
+      <strong>{fileName}</strong>: {t("import.summary", { persons: d.persons.length, unions: d.unions.length, sources: d.sources.length })}
+      {#if result.charset}<small>{t("import.charset", { charset: result.charset })}</small>{/if}
     </p>
 
     {#if result.warnings.length}
       <details open={result.warnings.length <= 10}>
-        <summary class="warn">{result.warnings.length} Hinweis{result.warnings.length === 1 ? "" : "e"} beim Import</summary>
+        <summary class="warn">{tn("import.warnings", result.warnings.length)}</summary>
         <ul class="list">
-          {#each result.warnings.slice(0, 200) as w}<li>{w.line ? `Zeile ${w.line}: ` : ""}{w.message}</li>{/each}
+          {#each result.warnings.slice(0, 200) as w}<li>{w.line ? t("import.line", { line: w.line }) : ""}{w.message}</li>{/each}
         </ul>
-        {#if result.warnings.length > 200}<p class="dim">… und {result.warnings.length - 200} weitere</p>{/if}
+        {#if result.warnings.length > 200}<p class="dim">{t("import.moreWarnings", { n: result.warnings.length - 200 })}</p>{/if}
       </details>
     {:else}
-      <p class="ok">Keine Hinweise beim Import.</p>
+      <p class="ok">{t("import.noWarnings")}</p>
     {/if}
 
     {#if issues.length}
       <details>
-        <summary class="warn">{issues.length} Problem{issues.length === 1 ? "" : "e"} im Baum</summary>
+        <summary class="warn">{tn("import.issues", issues.length)}</summary>
         <ul class="list">{#each issues.slice(0, 200) as i}<li>{i}</li>{/each}</ul>
       </details>
     {/if}
 
     <label class="name">
-      Name zum Speichern
+      {t("import.saveName")}
       <input bind:value={saveName} disabled={!store} />
     </label>
     <footer>
-      <button onclick={() => (result = null)} disabled={busy}>Andere Datei</button>
+      <button onclick={() => (result = null)} disabled={busy}>{t("import.otherFile")}</button>
       <span class="grow"></span>
-      <button onclick={showUnsaved} disabled={busy}>Nur anzeigen</button>
-      <button class="primary" onclick={saveAndShow} disabled={busy || !store}>Speichern und anzeigen</button>
+      <button onclick={showUnsaved} disabled={busy}>{t("import.showOnly")}</button>
+      <button class="primary" onclick={saveAndShow} disabled={busy || !store}>{t("import.saveShow")}</button>
     </footer>
   {:else}
     <label class="drop" class:dragging>
       <input type="file" accept=".ged,.gedcom,.json" onchange={(e) => { importFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
-      {busy ? "Lese Datei …" : "GEDCOM- oder JSON-Datei hierher ziehen oder klicken"}
+      {busy ? t("import.reading") : t("import.drop")}
     </label>
 
-    <h3>Gespeicherte Bäume</h3>
+    <h3>{t("import.saved")}</h3>
     {#if saved.length}
       <ul class="trees">
-        {#each saved as t (t.id)}
+        {#each saved as tree (tree.id)}
           <li>
-            <span><strong>{t.name}</strong> <small>{t.personCount.toLocaleString("de-DE")} Personen</small></span>
+            <span><strong>{tree.name}</strong> <small>{t("import.persons", { n: fmt(tree.personCount) })}</small></span>
             <span class="actions">
-              <button class="primary" onclick={() => openSaved(t)} disabled={busy}>Öffnen</button>
-              <button onclick={() => renameSaved(t)}>Umbenennen</button>
-              <button onclick={() => deleteSaved(t)}>Löschen</button>
+              <button class="primary" onclick={() => openSaved(tree)} disabled={busy}>{t("import.openTree")}</button>
+              <button onclick={() => renameSaved(tree)}>{t("import.rename")}</button>
+              <button onclick={() => deleteSaved(tree)}>{t("import.delete")}</button>
             </span>
           </li>
         {/each}
       </ul>
     {:else}
-      <p class="dim">Noch nichts gespeichert. Importierte Bäume lassen sich im Browser speichern (IndexedDB, nur auf diesem Gerät).</p>
+      <p class="dim">{t("import.noneSaved")}</p>
     {/if}
     <div class="backup">
-      <button onclick={backupAll} disabled={busy || !store || !saved.length} title="Alle gespeicherten Bäume als eine Datei herunterladen">Alle sichern (Backup)</button>
-      <label class="button" class:disabled={busy || !store} title="Backup-Datei einspielen; vorhandene Bäume bleiben erhalten">
-        Backup einspielen …
+      <button onclick={backupAll} disabled={busy || !store || !saved.length} title={t("import.backupAll.title")}>{t("import.backupAll")}</button>
+      <label class="button" class:disabled={busy || !store} title={t("import.restore.title")}>
+        {t("import.restore")}
         <input type="file" accept=".json" disabled={busy || !store} onchange={(e) => { restoreBackup(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
       </label>
     </div>

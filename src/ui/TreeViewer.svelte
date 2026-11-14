@@ -10,6 +10,8 @@
   import { TreeView, COLORS, sceneToSvg } from "../render";
   import type { DrawStats, LineMode } from "../render";
   import { LayoutClient } from "../workers/layoutClient";
+  import { fmt, i18n, t } from "./lang.svelte";
+  import type { MessageKey } from "./i18n";
 
   let {
     data,
@@ -40,17 +42,17 @@
   let showUnconfirmed = $state(true);
   let showUnknown = $state(true);
   let panelOpen = $state(true);
-  let info = $state("");
+  let layoutStats = $state<{ persons: number; ghosts: number; layers: number; ms: number } | null>(null);
   let error = $state("");
   let drawStats = $state<DrawStats | null>(null);
   let counts = $state({ visible: 0, total: 0 });
   let legend = $state<{ surname: string; color: string; n: number }[]>([]);
   let hasUnknownLine = $state(false);
 
-  const MODES: { value: ViewRequest["mode"]; label: string; hint: string }[] = [
-    { value: "direct", label: "Direkte Linie", hint: "Nur die Person, ihre Vorfahren und Nachfahren" },
-    { value: "family", label: "Familie", hint: "Zusätzlich Partner, Geschwister und Halbgeschwister" },
-    { value: "all", label: "Alle", hint: "Alles Verwandte im Tiefenfenster (bei dichten Verwandtschaften sehr breit)" },
+  const MODES: { value: ViewRequest["mode"]; label: MessageKey; hint: MessageKey }[] = [
+    { value: "direct", label: "viewer.mode.direct", hint: "viewer.mode.direct.hint" },
+    { value: "family", label: "viewer.mode.family", hint: "viewer.mode.family.hint" },
+    { value: "all", label: "viewer.mode.all", hint: "viewer.mode.all.hint" },
   ];
 
   /** Nur die jüngste Anfrage zeigen (Antworten des Workers können sich überholen). */
@@ -94,7 +96,7 @@
       view.setResult(result, !sameView);
       refreshPanel();
       error = "";
-      info = `${result.stats.persons} Karten (${result.stats.ghosts} Geister), ${result.stats.layers} Schichten, Layout ${result.stats.ms.toFixed(1)} ms`;
+      layoutStats = result.stats;
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     }
@@ -125,8 +127,8 @@
   function roleOf(personId: PersonId): string | undefined {
     if (!graph || !focusId || personId === focusId) return undefined;
     try {
-      const label = describeRelationship(graph, personId, focusId).label;
-      return label === "nicht verwandt" ? undefined : label;
+      const rel = describeRelationship(graph, personId, focusId, { lang: i18n.lang });
+      return rel.blood.length || rel.partner || rel.inLaw.length ? rel.label : undefined; // „nicht verwandt“ zeigen wir nicht
     } catch {
       return undefined;
     }
@@ -153,6 +155,13 @@
     loadData(data);
   });
 
+  // Sprache gewechselt: Namen und Rollen auf den Karten neu aufbauen.
+  $effect(() => {
+    void i18n.lang;
+    view?.refreshLabels();
+    refreshPanel();
+  });
+
   // Das Panel schwebt über der Zeichenfläche: beim Einpassen den Platz links freilassen (nicht auf schmalen Fenstern).
   $effect(() => {
     view?.setInset(panelOpen && window.innerWidth > 800 ? 264 : 0);
@@ -162,7 +171,7 @@
   function exportTitle(): string {
     const p = persons.get(focusId);
     const who = p ? [p.givenNames, p.surname].filter(Boolean).join(" ") : "";
-    return [title, who && `Fokus: ${who}`].filter(Boolean).join(" – ");
+    return [title, who && t("viewer.focusPrefix", { name: who })].filter(Boolean).join(" – ");
   }
 
   /** Die ganze aktuelle Ansicht (nicht nur den Bildschirmausschnitt) als SVG-Datei laden. */
@@ -223,60 +232,60 @@
   <canvas bind:this={canvas}></canvas>
 
   <aside class="panel" class:closed={!panelOpen}>
-    <button class="fold" onclick={() => (panelOpen = !panelOpen)} aria-expanded={panelOpen} title={panelOpen ? "Filter einklappen" : "Filter ausklappen"}>
-      {panelOpen ? "‹ Filter" : "› Filter"}
+    <button class="fold" onclick={() => (panelOpen = !panelOpen)} aria-expanded={panelOpen} title={panelOpen ? t("viewer.filter.collapse") : t("viewer.filter.expand")}>
+      {panelOpen ? "‹" : "›"} {t("viewer.filter")}
     </button>
     {#if panelOpen}
-      <div class="seg" role="group" aria-label="Filter">
+      <div class="seg" role="group" aria-label={t("viewer.filter")}>
         {#each MODES as m (m.value)}
-          <button class:on={mode === m.value} aria-pressed={mode === m.value} title={m.hint} onclick={() => setMode(m.value)}>
-            {m.label}
+          <button class:on={mode === m.value} aria-pressed={mode === m.value} title={t(m.hint)} onclick={() => setMode(m.value)}>
+            {t(m.label)}
           </button>
         {/each}
       </div>
-      <p class="count" aria-live="polite"><strong>{counts.visible}</strong> von {counts.total} Personen sichtbar</p>
+      <p class="count" aria-live="polite">{@html t("viewer.count", { visible: `<strong>${counts.visible}</strong>`, total: counts.total })}</p>
 
-      <label class="switch"><input type="checkbox" bind:checked={showUnconfirmed} onchange={applyOptions} /> Unbestätigte Verbindungen</label>
-      <label class="switch"><input type="checkbox" bind:checked={showUnknown} onchange={applyOptions} /> Unbekannte Personen</label>
+      <label class="switch"><input type="checkbox" bind:checked={showUnconfirmed} onchange={applyOptions} /> {t("viewer.unconfirmed")}</label>
+      <label class="switch"><input type="checkbox" bind:checked={showUnknown} onchange={applyOptions} /> {t("viewer.unknown")}</label>
 
       <div class="depth">
-        <label>Vorfahren <input type="number" min="0" max="30" bind:value={up} onchange={() => { up = clampDepth(up); show(); }} /></label>
-        <label>Nachfahren <input type="number" min="0" max="30" bind:value={down} onchange={() => { down = clampDepth(down); show(); }} /></label>
+        <label>{t("viewer.ancestors")} <input type="number" min="0" max="30" bind:value={up} onchange={() => { up = clampDepth(up); show(); }} /></label>
+        <label>{t("viewer.descendants")} <input type="number" min="0" max="30" bind:value={down} onchange={() => { down = clampDepth(down); show(); }} /></label>
       </div>
 
-      <h3>Familienlinien</h3>
+      <h3>{t("viewer.lines.title")}</h3>
       <ul class="legend">
         {#each legend as l (l.surname)}
           <li><i style:background={l.color}></i>{l.surname} <small>{l.n}</small></li>
         {/each}
-        {#if hasUnknownLine}<li><i style:background="#7d86a3"></i>Linie: Name unbekannt</li>{/if}
+        {#if hasUnknownLine}<li><i style:background="#7d86a3"></i>{t("viewer.lines.unknown")}</li>{/if}
       </ul>
 
-      <h3>Linien</h3>
-      <div class="seg" role="group" aria-label="Linienführung">
-        <button class:on={lineMode === "curved"} aria-pressed={lineMode === "curved"} onclick={() => { lineMode = "curved"; applyOptions(); }}>geschwungen</button>
-        <button class:on={lineMode === "orthogonal"} aria-pressed={lineMode === "orthogonal"} onclick={() => { lineMode = "orthogonal"; applyOptions(); }}>rechtwinklig</button>
+      <h3>{t("viewer.edges.title")}</h3>
+      <div class="seg" role="group" aria-label={t("viewer.edges.group")}>
+        <button class:on={lineMode === "curved"} aria-pressed={lineMode === "curved"} onclick={() => { lineMode = "curved"; applyOptions(); }}>{t("viewer.edges.curved")}</button>
+        <button class:on={lineMode === "orthogonal"} aria-pressed={lineMode === "orthogonal"} onclick={() => { lineMode = "orthogonal"; applyOptions(); }}>{t("viewer.edges.orthogonal")}</button>
       </div>
       <ul class="legend styles">
-        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" /></svg>belegt</li>
-        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" stroke-dasharray="6 4" /></svg>unbestätigt</li>
-        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" stroke-dasharray="2 4" /></svg>Adoption / Pflege</li>
+        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" /></svg>{t("viewer.edges.proven")}</li>
+        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" stroke-dasharray="6 4" /></svg>{t("viewer.edges.assumed")}</li>
+        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" stroke-dasharray="2 4" /></svg>{t("viewer.edges.adopted")}</li>
       </ul>
     {/if}
   </aside>
 
   <div class="zoom">
-    <button onclick={() => view?.fit()} title="Ganze Ansicht einpassen">Einpassen</button>
-    <button onclick={() => view?.zoomBy(1.25)} aria-label="Hineinzoomen">+</button>
-    <button onclick={() => view?.zoomBy(0.8)} aria-label="Herauszoomen">−</button>
-    <button onclick={exportSvg} title="Ganze Ansicht als SVG-Datei speichern">SVG</button>
-    <button onclick={printView} title="Ansicht drucken oder als PDF speichern">Druck</button>
+    <button onclick={() => view?.fit()} title={t("viewer.fit.title")}>{t("viewer.fit")}</button>
+    <button onclick={() => view?.zoomBy(1.25)} aria-label={t("viewer.zoomIn")}>+</button>
+    <button onclick={() => view?.zoomBy(0.8)} aria-label={t("viewer.zoomOut")}>−</button>
+    <button onclick={exportSvg} title={t("viewer.svg.title")}>SVG</button>
+    <button onclick={printView} title={t("viewer.print.title")}>{t("viewer.print")}</button>
   </div>
 
-  {#if error}<p class="error">Fehler: {error}</p>{/if}
+  {#if error}<p class="error">{t("viewer.error", { error })}</p>{/if}
   <p class="hint">
-    Ziehen = verschieben · Mausrad = zoomen · Klick auf Karte = Fokus wechseln · „+n“ = aufklappen
-    <span class="info">{info}{#if drawStats} · Zeichnen {drawStats.ms.toFixed(1)} ms ({drawStats.cards} sichtbar){/if}</span>
+    {t("viewer.hint")}
+    <span class="info">{#if layoutStats}{t("viewer.info", { persons: layoutStats.persons, ghosts: layoutStats.ghosts, layers: layoutStats.layers, ms: fmt(layoutStats.ms, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) })}{/if}{#if drawStats}{t("viewer.drawInfo", { ms: fmt(drawStats.ms, { maximumFractionDigits: 1, minimumFractionDigits: 1 }), cards: drawStats.cards })}{/if}</span>
   </p>
 </section>
 
@@ -299,7 +308,7 @@
   .seg button + button { border-left: 0; }
   .seg button.on { background: var(--accent); color: #07110f; border-color: var(--accent); }
   .count { margin: 0; color: var(--dim); font-size: 0.9rem; }
-  .count strong { color: var(--text); }
+  .count :global(strong) { color: var(--text); }
   .switch { display: flex; gap: 0.5rem; align-items: center; font-size: 0.9rem; cursor: pointer; }
   .switch input { accent-color: var(--accent); }
   .depth { display: flex; gap: 0.5rem; font-size: 0.85rem; color: var(--dim); }

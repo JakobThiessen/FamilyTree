@@ -14,6 +14,7 @@
   import type { AdoptResult, ExternalPerson, ImportBatch, Provider } from "../providers";
   import { describeLifespan } from "../providers/adopt";
   import { displayName, lifeSpan } from "../render/style";
+  import { t } from "./lang.svelte";
 
   let {
     data,
@@ -102,7 +103,7 @@
           deathYear: ext.death?.date?.year,
         }),
       }));
-      if (!found.length) message = "Keine Treffer.";
+      if (!found.length) message = t("online.noHits");
     } catch (e) {
       error = errText(e);
     } finally {
@@ -120,9 +121,9 @@
         ? await provider.fetchRelatives(hit.ext.ref)
         : { provider: provider.id, root: hit.ext.ref, people: [hit.ext], unions: [] };
       const res = adoptBatch(data, batch, { linkTo, includeRelatives: withRelatives });
-      const parts = [`${res.addedPersons} Person(en) und ${res.addedUnions} Partnerschaft(en) als „vermutet“ hinzugefügt`];
-      if (linkTo) parts.unshift("Verweis an vorhandene Person angehängt");
-      if (res.possibleDuplicates.length) parts.push(`${res.possibleDuplicates.length} mögliche Dublette(n) zu prüfen`);
+      const parts = [t("online.added", { persons: res.addedPersons, unions: res.addedUnions })];
+      if (linkTo) parts.unshift(t("online.linked"));
+      if (res.possibleDuplicates.length) parts.push(t("online.possibleDupes", { n: res.possibleDuplicates.length }));
       if (res.notes.length) parts.push(res.notes.join(" "));
       await onAdopt(res, parts.join("; ") + ".");
       dialog.close();
@@ -136,36 +137,36 @@
 
 <dialog bind:this={dialog} aria-labelledby="online-title">
   <header>
-    <h2 id="online-title">Online suchen</h2>
-    <button onclick={() => dialog.close()} aria-label="Schließen">✕</button>
+    <h2 id="online-title">{t("online.title")}</h2>
+    <button onclick={() => dialog.close()} aria-label={t("online.close")}>✕</button>
   </header>
 
   <form onsubmit={search}>
-    <label>Quelle
+    <label>{t("online.source")}
       <select bind:value={providerId}>
-        <option value="wikidata">Wikidata (bekannte historische Personen)</option>
-        <option value="wikitree">WikiTree (offene Profile)</option>
-        <option value="familysearch">FamilySearch (Gerüst, ungeprüft)</option>
+        <option value="wikidata">{t("online.opt.wikidata")}</option>
+        <option value="wikitree">{t("online.opt.wikitree")}</option>
+        <option value="familysearch">{t("online.opt.familysearch")}</option>
       </select>
     </label>
     {#if providerId === "wikitree"}
-      <label>Adresse der WikiTree-API
+      <label>{t("online.wikitreeUrl")}
         <input bind:value={wikitreeBase} spellcheck="false" />
-        <small>WikiTree erlaubt keine Abfragen direkt aus dem Browser. Im Dev-Server ist <code>/wikitree/api.php</code> voreingestellt; sonst die Adresse eines eigenen Durchleiters eintragen.</small>
+        <small>{t("online.wikitreeHelp", { dev: "/wikitree/api.php" })}</small>
       </label>
     {:else if providerId === "familysearch"}
-      <label>Zugriffstoken
+      <label>{t("online.token")}
         <input type="password" bind:value={token} autocomplete="off" />
-        <small>Braucht ein FamilySearch-Entwicklerkonto; das Token wird nicht gespeichert.</small>
+        <small>{t("online.tokenHelp")}</small>
       </label>
     {/if}
     <div class="row">
-      <label>Vorname(n)<input bind:value={givenNames} /></label>
-      <label>Nachname<input bind:value={surname} required /></label>
-      <label class="year">Geburtsjahr<input bind:value={birthYear} inputmode="numeric" pattern="[0-9]*" /></label>
+      <label>{t("online.given")}<input bind:value={givenNames} /></label>
+      <label>{t("online.surname")}<input bind:value={surname} required /></label>
+      <label class="year">{t("online.birthYear")}<input bind:value={birthYear} inputmode="numeric" pattern="[0-9]*" /></label>
     </div>
-    <p class="dim">{provider.disclosure} Erst mit „Suchen“ wird etwas gesendet.</p>
-    <button class="primary" disabled={busy || !data}>{busy ? "Bitte warten …" : "Suchen"}</button>
+    <p class="dim">{provider.disclosure} {t("online.sendNote")}</p>
+    <button class="primary" disabled={busy || !data}>{busy ? t("online.wait") : t("online.search")}</button>
   </form>
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -174,7 +175,7 @@
   {#if hits?.length}
     <label class="check">
       <input type="checkbox" bind:checked={withRelatives} />
-      Eltern, Partner und Kinder mitnehmen (löst beim Übernehmen eine weitere Abfrage aus)
+      {t("online.withRelatives")}
     </label>
     <ul class="hits">
       {#each hits as h (refKey(h.ext.ref))}
@@ -186,20 +187,20 @@
           </div>
           {#if h.ext.summary}<small class="dim">{h.ext.summary}</small>{/if}
           {#if h.known}
-            <p class="ok">Schon im Baum: {personLabel(h.known)} (gleicher Verweis).</p>
+            <p class="ok">{t("online.known", { person: personLabel(h.known) })}</p>
           {/if}
           {#if h.dupes.length}
-            <p class="warn">Mögliche Dublette – bitte prüfen, es wird nichts automatisch zusammengeführt:</p>
+            <p class="warn">{t("online.dupes")}</p>
             <ul class="dupes">
               {#each h.dupes as d (d.personId)}
                 <li>
                   {personLabel(d.personId)} <small>({d.reasons.join(", ")})</small>
-                  <button disabled={busy} onclick={() => take(h, d.personId)} title="Ist dieselbe Person: nur Verweis, Quelle und Notiz anhängen">Ist dieselbe Person</button>
+                  <button disabled={busy} onclick={() => take(h, d.personId)} title={t("online.same.title")}>{t("online.same")}</button>
                 </li>
               {/each}
             </ul>
           {/if}
-          <button disabled={busy} onclick={() => take(h)}>Als neue, vermutete Person übernehmen</button>
+          <button disabled={busy} onclick={() => take(h)}>{t("online.adopt")}</button>
         </li>
       {/each}
     </ul>

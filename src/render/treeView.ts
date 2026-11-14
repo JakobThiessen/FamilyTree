@@ -115,6 +115,12 @@ export class TreeView {
     this.invalidate();
   }
 
+  /** Sprache gewechselt: Rollen-Zwischenspeicher leeren und Szene neu bauen (Namen, Rollen), Kamera bleibt. */
+  refreshLabels(): void {
+    this.roleCache.clear();
+    this.setOptions(this.options);
+  }
+
   /** Filter und Linienführung ändern: Szene aus dem letzten Layout neu bauen, Kamera bleibt. */
   setOptions(options: SceneOptions): void {
     this.options = { ...options };

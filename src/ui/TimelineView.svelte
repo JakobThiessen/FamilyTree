@@ -17,6 +17,7 @@
     onPick: (id: PersonId) => void;
   } = $props();
 
+  import { fmt, t, tn } from "./lang.svelte";
   let scope = $state<TimelineScope>("lineage");
   let depth = $state(5);
   /** Pixel pro Jahr (Zoom) */
@@ -46,40 +47,42 @@
     for (let y = Math.ceil(x0 / step) * step; y <= x1; y += step) ticks.push(y);
     return { x0, width: (x1 - x0) * ppy + PAD * 2, ticks };
   });
+  const markerLabel = (m: { kind: string; who?: string }) =>
+    m.kind === "union" ? (m.who ? t("tl.marker.unionWith", { name: m.who }) : t("tl.marker.union")) : t("tl.marker.child", { name: m.who ?? "?" });
   const x = (year: number) => (year - axis.x0) * ppy + PAD;
 </script>
 
 {#if !timeline}
-  <p class="empty">Keine Person gewählt. Im Stammbaum eine Person anklicken oder über die Suche wählen.</p>
+  <p class="empty">{t("common.noPerson")}</p>
 {:else}
   <div class="wrap">
     <div class="bar">
-      <label>Auswahl
+      <label>{t("common.selection")}
         <select bind:value={scope}>
-          <option value="lineage">Fokus, Vorfahren und Nachfahren</option>
-          <option value="all">Alle Personen</option>
+          <option value="lineage">{t("tl.scope.lineage")}</option>
+          <option value="all">{t("tl.scope.all")}</option>
         </select>
       </label>
       {#if scope === "lineage"}
-        <label>Tiefe
-          <select bind:value={depth}>{#each [1, 2, 3, 5, 8, 12, 20] as d}<option value={d}>{d} Generationen</option>{/each}</select>
+        <label>{t("common.depth")}
+          <select bind:value={depth}>{#each [1, 2, 3, 5, 8, 12, 20] as d}<option value={d}>{tn("common.generations", d)}</option>{/each}</select>
         </label>
       {/if}
-      <label>Zoom
-        <select bind:value={ppy}>{#each ZOOMS as z}<option value={z}>{z} px/Jahr</option>{/each}</select>
+      <label>{t("tl.zoom")}
+        <select bind:value={ppy}>{#each ZOOMS as z}<option value={z}>{t("tl.ppy", { n: z })}</option>{/each}</select>
       </label>
-      <span class="dim">{timeline.rows.length} Personen{#if timeline.undated} · {timeline.undated} ohne datierbaren Zeitpunkt{/if}</span>
+      <span class="dim">{t("tl.persons", { n: fmt(timeline.rows.length) })}{#if timeline.undated}{t("tl.undated", { n: timeline.undated })}{/if}</span>
       <span class="legend dim">
-        <i class="sw solid"></i>belegt <i class="sw est"></i>geschätzt <i class="sw fuzzy"></i>unscharf
-        <i class="dia"></i>Heirat <i class="dot"></i>Geburt eines Kindes
+        <i class="sw solid"></i>{t("tl.legend.proven")} <i class="sw est"></i>{t("tl.legend.est")} <i class="sw fuzzy"></i>{t("tl.legend.fuzzy")}
+        <i class="dia"></i>{t("tl.legend.union")} <i class="dot"></i>{t("tl.legend.child")}
       </span>
     </div>
     {#if timeline.truncated}
-      <p class="warn" role="status">{timeline.total} datierbare Personen: gezeigt werden die {MAX_ROWS} um das Geburtsjahr der Fokusperson. „Fokus, Vorfahren und Nachfahren“ wählen, um es einzugrenzen.</p>
+      <p class="warn" role="status">{t("tl.truncated", { total: timeline.total, max: MAX_ROWS, scope: t("tl.scope.lineage") })}</p>
     {/if}
 
     {#if timeline.rows.length === 0}
-      <p class="empty">Für diese Auswahl gibt es keine datierbaren Personen.</p>
+      <p class="empty">{t("tl.none")}</p>
     {:else}
       <div class="scroll">
         <div class="grid" style:height="{(timeline.rows.length + 1) * ROW}px">
@@ -91,7 +94,7 @@
               </div>
             {/each}
           </div>
-          <svg width={axis.width} height={(timeline.rows.length + 1) * ROW} role="img" aria-label="Lebensbalken auf einer Zeitachse">
+          <svg width={axis.width} height={(timeline.rows.length + 1) * ROW} role="img" aria-label={t("tl.svgLabel")}>
             <!-- Achse mit Gitternetz -->
             {#each axis.ticks as t (t)}
               <line x1={x(t)} x2={x(t)} y1={ROW} y2={(timeline.rows.length + 1) * ROW} class="grid-line" />
@@ -109,13 +112,13 @@
                 fill={color} fill-opacity={r.startDerived || r.endDerived ? 0.35 : 0.85}
                 stroke={color} stroke-dasharray={r.startDerived || r.endDerived ? "3 2" : undefined}
               >
-                <title>{r.name}: {r.birth ? r.birth.from : "?"} – {r.death ? r.death.to : r.maybeLiving ? "vermutlich lebend" : "?"}{r.startDerived || r.endDerived ? " (teilweise geschätzt)" : ""}</title>
+                <title>{r.name}: {r.birth ? r.birth.from : "?"} – {r.death ? r.death.to : r.maybeLiving ? t("tl.maybeLiving") : "?"}{r.startDerived || r.endDerived ? t("tl.partlyEstimated") : ""}</title>
               </rect>
               {#each r.markers as m, mi (mi)}
                 {#if m.kind === "union"}
-                  <rect x={x(m.year) - 4} y={y + ROW / 2 - 4} width="8" height="8" transform="rotate(45 {x(m.year)} {y + ROW / 2})" class="marker union"><title>{m.label} ({m.year})</title></rect>
+                  <rect x={x(m.year) - 4} y={y + ROW / 2 - 4} width="8" height="8" transform="rotate(45 {x(m.year)} {y + ROW / 2})" class="marker union"><title>{markerLabel(m)} ({m.year})</title></rect>
                 {:else}
-                  <circle cx={x(m.year)} cy={y + ROW / 2} r="3" class="marker child"><title>{m.label} ({m.year})</title></circle>
+                  <circle cx={x(m.year)} cy={y + ROW / 2} r="3" class="marker child"><title>{markerLabel(m)} ({m.year})</title></circle>
                 {/if}
               {/each}
             {/each}
