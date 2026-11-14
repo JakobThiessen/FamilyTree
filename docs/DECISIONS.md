@@ -50,3 +50,21 @@ Voll-Geschwister = gleiche Union; Halb-Geschwister = gemeinsamer Elternteil in a
 - **Speichern:** ein Import = eine Transaktion (alles oder nichts). Es gibt noch kein Ändern einzelner Personen; das kommt mit Bearbeitung (nach M7). Neuer Import legt immer einen neuen Baum an.
 - **Abhängigkeiten:** `idb` (laut Architektur geplant): kleiner Promise-Wrapper um IndexedDB, spart fehleranfälligen Callback-Code. `fake-indexeddb` (nur Dev): IndexedDB in Node, damit `tests/storage` ohne Browser laufen.
 - **Svelte-Proxy:** `$state` verpackt Objekte in Proxys, die IndexedDB nicht klonen kann (im Browser aufgefallen, Tests in Node sehen das nicht). Die UI hält Baumdaten daher mit `$state.raw`.
+
+## D14 – Vorfahren je Tiefe, Ahnenschwund und gemeinsame Vorfahren (2026-11-14)
+- `ancestorLevels`/`descendantLevels` stellen jede Person nur in ihre **kürzeste** Schicht (Breitensuche mit Besuchtmenge). Wer wissen will, auf wie vielen Wegen und in welcher Tiefe ein Ahn vorkommt, nutzt `ancestorProfile` (rechnet schichtweise, zählt Wege statt sie aufzuzählen).
+- Ahnenschwund = Ahn mit mehr als einem Weg. `pedigreeCollapse` liefert die Ahnen, Zahlen je Tiefe und den **Implex** (1 − verschiedene Ahnen / belegte Ahnenplätze).
+- `findCommonAncestors` ist die bidirektionale Suche: zwei Fronten steigen abwechselnd (die kleinere zuerst) und laufen bis zur Erschöpfung bzw. `maxDepth`, damit **alle** gemeinsamen Vorfahren gefunden werden. Ein Abbruch beim ersten Treffer wäre falsch, weil ein tieferer niedrigster Ahn auf einer Seite später auftauchen kann. Jeder Treffer trägt kürzeste Entfernung und alle Tiefen je Seite; `lowest` = kein anderer gemeinsamer Vorfahr stammt von ihm ab.
+- Ist A Vorfahr von B, gilt A selbst als gemeinsamer Vorfahr (Entfernung 0). Schutz vor Zyklen: Schichten sind auf die Personenzahl begrenzt (kaputte Daten, siehe D9).
+- Standardmäßig zählen alle Verknüpfungsarten (auch Adoption) mit; `biologicalOnly` schränkt ein.
+
+## D15 – Verwandtschaftsbezeichnung (2026-11-14)
+- Blickrichtung: `describeRelationship(g, a, b)` sagt, **was A für B ist** („A ist Großmutter von B“); das Geschlecht von A bestimmt die Wortform, bei `U` neutrale Formen („Elternteil“, „Onkel/Tante“).
+- Bezeichnung aus (Schritte A→Ahn, Schritte B→Ahn): (0,n) Eltern/Großeltern/Urgroßeltern, (n,0) Kinder/Enkel/Urenkel, (1,1) Geschwister, (1,n)/(n,1) Onkel/Tante, Großonkel … bzw. Neffe/Nichte, sonst **Cousin n. Grades** (n = kleinerer Abstand − 1) mit „k Generation(en) versetzt“ bei Abstandsunterschied. Ab 6 Schritten Zahlenform statt „Urururur…“.
+- Voll/halb: Eine Linie ist „halb“, wenn A und B nicht über dieselbe Union des Ahns absteigen. Gleiche Ahnenpaare (beide Partner einer gemeinsamen Union) bilden **eine** Linie. Mehrere Linien (doppelte Cousins, Halbbruder und Cousin zugleich) werden alle gemeldet; gleiche Bezeichnungen heißen „(doppelt)“ bzw. „(n-fach)“.
+- Partner: Ehemann/Ehefrau (Union `marriage`), sonst Partner/Partnerin, bei Scheidung „Ex-“. Blut und Partnerschaft werden kombiniert („Ehemann, Cousin 1. Grades“).
+- Verwandtschaft durch Heirat nur, wenn weder Blut noch Partnerschaft vorliegt: Schwager/Schwägerin, Schwiegereltern/-kinder, Stiefeltern/-kinder, Schwippschwager, sonst allgemein „Partner von …“. Das deckt die weite Stiefdefinition aus D10 ab (auch frühere Partner des Elternteils).
+- Nicht umgesetzt: Seitenlinien über zwei Heiraten hinaus, Bezeichnungen für Patenschaft. Nur Deutsch; Englisch kommt mit der Zweisprachigkeit (M9).
+
+## D16 – Inzuchtkoeffizient (2026-11-14)
+Nach Wright/Malécot über die rekursive Kinship-Formel: φ(x,y) ersetzt die Person mit dem größeren Rang (längster Weg bis zu einem Gründer) durch den Mittelwert über ihre Eltern; F(x) = φ(Vater, Mutter). Vorteile gegenüber dem Aufzählen aller Wege: Inzucht der Ahnen fließt automatisch ein, jedes Paar wird nur einmal gerechnet (Zwischenspeicher in `KinshipCalculator`). Eltern = Partner der ersten Eltern-Union mit Art `biological`/`unknown`; Adoptiv- und Pflegeeltern nur mit `includeAdopted`. Bei nur einem bekannten Elternteil ist F = 0. Geprüft an Grundfällen (Geschwister 1/4, Onkel/Nichte 1/8, Halbgeschwister 1/8, Cousins 1/16, Vater/Tochter 1/4). Keine neuen Abhängigkeiten in M4.

@@ -32,12 +32,12 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 - [x] Mehrere Bäume/Projekte verwalten
 - [x] Laden nach Bedarf (nur benötigte Personen)
 
-## M4 – Verwandtschaft und bidirektionale Suche ⬜
-- [ ] Vorfahren-/Nachfahrenmenge je Tiefe
-- [ ] Bidirektionale Suche A ↔ B, **alle** gemeinsamen Vorfahren
-- [ ] Verwandtschaftsbezeichnung (Cousin n. Grades, Schwager, mehrfach)
-- [ ] Inzuchtkoeffizient (optional)
-- [ ] Erkennung von Ahnenschwund
+## M4 – Verwandtschaft und bidirektionale Suche ✅
+- [x] Vorfahren-/Nachfahrenmenge je Tiefe
+- [x] Bidirektionale Suche A ↔ B, **alle** gemeinsamen Vorfahren
+- [x] Verwandtschaftsbezeichnung (Cousin n. Grades, Schwager, mehrfach)
+- [x] Inzuchtkoeffizient
+- [x] Erkennung von Ahnenschwund
 
 ## M5 – Layout ⬜
 - [ ] Generationenschichten, Sanduhr-Layout (Ahnen oben, Nachfahren unten)
