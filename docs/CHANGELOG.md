@@ -4,6 +4,12 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M9a)
+- `src/core/pedigree.ts` (D29): `buildAhnentafel`, `fatherAndMother`, `pedigreeReport` (Ahnentafel mit Sosa-Nummern je Generation, Verweis auf doppelte Ahnen, Ahnenschwund, Inzuchtkoeffizient)
+- Reiter „Ahnen“ (`AncestorsView.svelte`): Kennzahlen (Ahnenplätze, doppelte Ahnen, Implex, Inzuchtkoeffizient), Liste der doppelten Ahnen, Tabelle je Generation, einstellbare Tiefe (2–20), Klick wechselt den Fokus
+- Tests `tests/core/pedigree.test.ts` (Cousinenheirat, Mini-Baum, Grenzen)
+- Im Browser geprüft: `example/json/*`, `example/gedcom/*`, `tree-50000.json` (Tiefe 20 in unter 25 ms)
+
 ### Hinzugefügt (M7b)
 - Zeichenfläche (`src/render`, D28): Verbindungen als S-Kurven (umschaltbar „geschwungen / rechtwinklig“, Standard geschwungen), Karten mit größerem Eckenradius und Avatar-Kreis mit Initialen in der Familienfarbe, Leuchten nur bei Fokus und Hover, Hintergrundverlauf, weiche Kamerafahrt bei Fokuswechsel; bei starkem Herauszoomen Kurven als Gerade
 - `buildScene(result, persons, options)` mit `lineMode`, `showUnconfirmed`, `showUnknown`; `Scene.visiblePersons/totalPersons`; `isUnknownPerson`, `initials` in `style.ts`; `TreeView.setOptions`, `setInset`, `visibleCounts`, Ereignis `roleOf`

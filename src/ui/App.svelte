@@ -7,6 +7,7 @@
   import { exportGedcom } from "../import/gedcomExport";
   import { TreeStore } from "../storage";
   import type { TreeMeta } from "../storage";
+  import AncestorsView from "./AncestorsView.svelte";
   import ImportDialog from "./ImportDialog.svelte";
   import OnlineDialog from "./OnlineDialog.svelte";
   import type { AdoptResult } from "../providers";
@@ -36,8 +37,7 @@
     { id: "timeline", label: "Zeitleiste" },
     { id: "map", label: "Karte" },
   ];
-  const SOON: Record<Exclude<Tab, "tree">, string> = {
-    ancestors: "Ahnentafel mit Sosa-Nummern, Ahnenschwund und Inzuchtkoeffizient",
+  const SOON: Record<"timeline" | "map", string> = {
     timeline: "Lebensbalken mit unscharfen Daten",
     map: "Orte und Lebenswege",
   };
@@ -92,6 +92,12 @@
   /** Suche in der Kopfleiste: immer zur Stammbaum-Ansicht wechseln und dort die Person fokussieren. */
   function pick(id: PersonId) {
     tab = "tree";
+    viewer?.focusOn(id);
+  }
+
+  /** Klick in der Ahnentafel: Fokus wechseln, aber im Reiter „Ahnen“ bleiben. */
+  function pickKeepTab(id: PersonId) {
+    focusId = id;
     viewer?.focusOn(id);
   }
 
@@ -180,7 +186,9 @@
         <p class="empty">Noch kein Stammbaum geöffnet.</p>
       {/if}
     </div>
-    {#if tab !== "tree"}
+    {#if tab === "ancestors"}
+      <div class="stage"><AncestorsView {graph} {persons} {focusId} onPick={pickKeepTab} /></div>
+    {:else if tab === "timeline" || tab === "map"}
       <div class="stage soon">
         <h2>{TABS.find((t) => t.id === tab)?.label}</h2>
         <p>Folgt: {SOON[tab]}.</p>
