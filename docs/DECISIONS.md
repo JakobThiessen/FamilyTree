@@ -168,3 +168,10 @@ Ersetzt in D23 die **Linienführung** (Sammelschienen und Spuren sind nur noch Z
 - **Darstellung:** `MapView.svelte` als SVG. Zoomen mit Mausrad, Verschieben durch Ziehen, Marken und Linien bleiben beim Zoomen gleich groß (`px()`), Modus „Orte“ (Marken nach Personenzahl, Liste mit Ereignissen) oder „Lebenswege“ (gestrichelte Linien in Familienfarbe, nummerierte Stationen der gewählten Person). Auswahl wie bei der Zeitleiste (Fokus-Verwandtschaft oder alle).
 - **Grenzen:** Liste 300 Einträge, 2.000 Marken, 400 Linien. Gemessen in Node mit 50.000 Personen und 5.000 Orten: `collectPlaces` 297 ms, `lifePaths` 233 ms. Nicht gelöst: Linien über den 180.-Längengrad werden quer durch die Karte gezeichnet.
 - **Keine neue Abhängigkeit.**
+
+## D32 – Backup und Restore als eine JSON-Datei (M9, Schritt 1, 2026-11-14)
+- **Format:** `{ format: "familytree-backup", version: 1, createdAt, trees: [{ name, createdAt, updatedAt, data }] }`, `data` ist das normale Austauschformat (`TreeData`). Reines TypeScript in `src/import/backup.ts` (`serializeBackup`, `parseBackup`), Lesen prüft Form und Version.
+- **Speicher:** `TreeStore.exportAll()` (ein Baum nach dem anderen) und `restoreAll(trees)`. Einspielen ist **additiv**: jeder Baum bekommt eine neue ID, nichts wird überschrieben oder gelöscht, auch nicht bei gleichem Namen. Namen und Zeitstempel bleiben erhalten (`saveTree` nimmt optional `times`).
+- **UI:** Im Dialog „Stammbaum öffnen“ unter den gespeicherten Bäumen: „Alle sichern (Backup)“ und „Backup einspielen …“.
+- **Nicht enthalten:** Ortskoordinaten aus Wikidata-Abfragen (`localStorage`, D31) – sie sind abgeleitet und lassen sich neu abfragen.
+- **Keine neue Abhängigkeit.**

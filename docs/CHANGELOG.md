@@ -4,6 +4,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M9, Schritt 1: Backup/Restore)
+- `src/import/backup.ts` (D32): `serializeBackup`, `parseBackup`; `TreeStore.exportAll` / `restoreAll` (additiv, nichts wird überschrieben)
+- Dialog „Stammbaum öffnen“: „Alle sichern (Backup)“ und „Backup einspielen …“
+- Tests in `tests/storage/treeStore.test.ts`; im Browser geprüft (Sichern, Einspielen, Liste wächst)
+
 ### Hinzugefügt (M9c)
 - `src/core/places.ts` (D31): `collectPlaces`, `lifePaths`, `placeKey` (Orte zusammenfassen, Lebenswege je Person)
 - `src/providers/placeLookup.ts`: `lookupPlace` / `lookupPlaces` (Koordinaten per Wikidata, nur Ortsnamen, nur auf Knopfdruck)

@@ -3,7 +3,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { parseTreeJson, type Person, type TreeData, type Union } from "../../src/core";
-import { importFileContent } from "../../src/import";
+import { importFileContent, parseBackup, serializeBackup } from "../../src/import";
 import { TreeNotFoundError, TreeStore } from "../../src/storage";
 
 const json = (f: string): TreeData => parseTreeJson(readFileSync(`example/json/${f}`, "utf8"));
@@ -173,5 +173,28 @@ describe("Laden nach Bedarf", () => {
     const t = await store.saveTree("Mit Quelle", data);
     const view = await store.loadNeighborhood(t.id, "p_0", { up: 1, down: 0 });
     expect(view.sources.map((s) => s.id)).toEqual(["s_1"]);
+  });
+});
+
+describe("Backup und Restore", () => {
+  it("sichert alle Bäume und spielt sie zusätzlich wieder ein", async () => {
+    const a = await store.saveTree("Familie A", json("multiple-marriages.json"));
+    await store.saveTree("Familie B", chain(5));
+    const text = serializeBackup(await store.exportAll());
+
+    const restored = await store.restoreAll(parseBackup(text));
+    expect(restored).toHaveLength(2);
+    const all = await store.listTrees();
+    expect(all).toHaveLength(4); // nichts überschrieben, nichts gelöscht
+    const copy = restored.find((m) => m.name === "Familie A")!;
+    expect(copy.id).not.toBe(a.id);
+    expect(copy.createdAt).toBe(a.createdAt);
+    expect(sorted((await store.loadTree(copy.id)).persons)).toEqual(sorted((await store.loadTree(a.id)).persons));
+  });
+
+  it("lehnt fremde und kaputte Dateien ab", () => {
+    expect(() => parseBackup("kein json")).toThrow();
+    expect(() => parseBackup('{"format":"anderes"}')).toThrow(/Backup/);
+    expect(() => parseBackup('{"format":"familytree-backup","version":1,"trees":[{"name":"x","data":{}}]}')).toThrow();
   });
 });

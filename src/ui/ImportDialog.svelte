@@ -5,6 +5,7 @@
   import { FamilyGraph } from "../core";
   import type { TreeData } from "../core";
   import type { ImportResult } from "../import/gedcomImport";
+  import { parseBackup, serializeBackup } from "../import/backup";
   import { importFileInWorker } from "../workers/importClient";
   import type { TreeMeta, TreeStore } from "../storage";
 
@@ -37,6 +38,7 @@
   let fileName = $state("");
   let saveName = $state("");
   let issues = $state<string[]>([]);
+  let info = $state("");
 
   export function open() {
     if (!dialog.open) dialog.showModal();
@@ -103,6 +105,44 @@
       dialog.close();
     } catch (e) {
       error = errText(e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Backup: alle gespeicherten Bäume als eine Datei herunterladen. */
+  async function backupAll() {
+    if (!store) return;
+    busy = true;
+    error = info = "";
+    try {
+      const trees = await store.exportAll();
+      const url = URL.createObjectURL(new Blob([serializeBackup(trees)], { type: "application/json" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `familytree-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      info = `${trees.length} Baum/Bäume gesichert.`;
+    } catch (e) {
+      error = "Sichern fehlgeschlagen: " + errText(e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Restore: Backup-Datei lesen, Bäume zusätzlich anlegen (Bestehendes bleibt). */
+  async function restoreBackup(file: File | undefined) {
+    if (!file || !store) return;
+    busy = true;
+    error = info = "";
+    try {
+      const trees = parseBackup(await file.text());
+      await store.restoreAll(trees);
+      await onSaved();
+      info = `${trees.length} Baum/Bäume eingespielt (zusätzlich zu den vorhandenen).`;
+    } catch (e) {
+      error = "Einspielen fehlgeschlagen: " + errText(e);
     } finally {
       busy = false;
     }
@@ -190,6 +230,14 @@
     {:else}
       <p class="dim">Noch nichts gespeichert. Importierte Bäume lassen sich im Browser speichern (IndexedDB, nur auf diesem Gerät).</p>
     {/if}
+    <div class="backup">
+      <button onclick={backupAll} disabled={busy || !store || !saved.length} title="Alle gespeicherten Bäume als eine Datei herunterladen">Alle sichern (Backup)</button>
+      <label class="button" class:disabled={busy || !store} title="Backup-Datei einspielen; vorhandene Bäume bleiben erhalten">
+        Backup einspielen …
+        <input type="file" accept=".json" disabled={busy || !store} onchange={(e) => { restoreBackup(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
+      </label>
+    </div>
+    {#if info}<p class="ok" role="status">{info}</p>{/if}
   {/if}
 </dialog>
 
@@ -216,6 +264,11 @@
   .name input { display: block; width: 100%; box-sizing: border-box; margin-top: 0.2rem; }
   footer { display: flex; gap: 0.5rem; margin-top: 1rem; }
   .grow { flex: 1; }
+  .backup { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+  .button { display: inline-block; padding: 0.4rem 0.8rem; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .button:hover { border-color: var(--accent); }
+  .button.disabled { opacity: 0.5; pointer-events: none; }
+  .button input { display: none; }
   .error { color: var(--bad); }
   .warn { color: var(--warn); cursor: pointer; }
   .ok { color: #7bd88f; }

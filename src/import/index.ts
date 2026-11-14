@@ -5,3 +5,4 @@ export * from "./gedcomParser";
 export * from "./gedcomImport";
 export * from "./gedcomExport";
 export * from "./importFile";
+export * from "./backup";

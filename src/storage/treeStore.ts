@@ -4,6 +4,7 @@
  */
 
 import type { Citation, Person, PersonId, Source, SourceId, TreeData, Union } from "../core";
+import type { BackupTree } from "../import/backup";
 import { openTreeDb, personKey } from "./schema";
 import type { Db, TreeMeta } from "./schema";
 
@@ -70,13 +71,13 @@ export class TreeStore {
    * Legt einen neuen Baum mit den Daten an (z. B. Ergebnis des Imports).
    * Alles in EINER Transaktion: schlägt etwas fehl, bleibt nichts Halbes zurück.
    */
-  async saveTree(name: string, data: TreeData): Promise<TreeMeta> {
+  async saveTree(name: string, data: TreeData, times?: { createdAt: number; updatedAt: number }): Promise<TreeMeta> {
     const now = Date.now();
     const meta: TreeMeta = {
       id: newTreeId(),
       name: name.trim() || "Unbenannter Baum",
-      createdAt: now,
-      updatedAt: now,
+      createdAt: times?.createdAt ?? now,
+      updatedAt: times?.updatedAt ?? now,
       personCount: data.persons.length,
       unionCount: data.unions.length,
       sourceCount: data.sources.length,
@@ -168,6 +169,27 @@ export class TreeStore {
       tx.objectStore("sources").delete(range),
       tx.done,
     ]);
+  }
+
+  // ---------- Backup (M9, D32) ----------
+
+  /** Alle Bäume mit vollem Inhalt, für die Backup-Datei. Ein Baum nach dem anderen (spart Speicher). */
+  async exportAll(): Promise<BackupTree[]> {
+    const out: BackupTree[] = [];
+    for (const meta of await this.listTrees()) {
+      out.push({ name: meta.name, createdAt: meta.createdAt, updatedAt: meta.updatedAt, data: await this.loadTree(meta.id) });
+    }
+    return out;
+  }
+
+  /**
+   * Spielt Bäume aus einem Backup ein. Bestehendes bleibt unangetastet: jeder Baum wird mit
+   * neuer ID zusätzlich angelegt (auch bei gleichem Namen), so geht beim Einspielen nichts verloren.
+   */
+  async restoreAll(trees: BackupTree[]): Promise<TreeMeta[]> {
+    const metas: TreeMeta[] = [];
+    for (const t of trees) metas.push(await this.saveTree(t.name, t.data, { createdAt: t.createdAt, updatedAt: t.updatedAt }));
+    return metas;
   }
 
   // ---------- Laden ----------

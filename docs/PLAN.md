@@ -77,10 +77,13 @@ Konzept: [UI-KONZEPT.md](UI-KONZEPT.md), Schritte 0–2. Reihenfolge danach: Ahn
 - [x] M9c Karte: Orte als Liste, Offline-Weltkarte (handgebaut, grob), Lebenswege, Orte per Wikidata auf Auslösung (D31)
 - [ ] Optional: Forschung, Quellen
 
-## M9 – Feinschliff ⬜
-- [ ] Ausdruck/PDF/SVG-Export
-- [ ] Barrierefreiheit, Mobile, Zweisprachigkeit (DE/EN)
-- [ ] Backup/Restore, optional PWA (offline)
+## M9 – Feinschliff 🟨
+Reihenfolge (mit Nutzer abgestimmt): Backup, Export, DE/EN, Barrierefreiheit/Mobile, PWA.
+- [x] Schritt 1: Backup/Restore (D32)
+- [ ] Schritt 2: Ausdruck/PDF/SVG-Export
+- [ ] Schritt 3: Zweisprachigkeit (DE/EN)
+- [ ] Schritt 4: Barrierefreiheit, Mobile (inkl. Karte über den 180.-Längengrad)
+- [ ] Schritt 5: optional PWA (offline)
 
 ## Offene Fragen
 - Soll später ein Mehrbenutzer-Betrieb oder Sync möglich sein? (Aktuell: nein, lokal)
