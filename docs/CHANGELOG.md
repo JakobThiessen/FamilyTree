@@ -4,6 +4,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M9, Schritt 2: Export)
+- `src/render/svgExport.ts` (D33): `sceneToSvg`, `xmlEscape` – SVG der ganzen Ansicht, hell (Druck) oder dunkel
+- Reiter Stammbaum: Knöpfe „SVG“ (Datei) und „Druck“ (Druckdialog, PDF über „Als PDF speichern“), Druck-Stil in `app.css`
+- Tests `tests/render/render.test.ts` (SVG-Aufbau, Maskierung, leere Szene); im Browser geprüft: Druckbereich mit 10 Karten, `@page` quer
+
 ### Hinzugefügt (M9, Schritt 1: Backup/Restore)
 - `src/import/backup.ts` (D32): `serializeBackup`, `parseBackup`; `TreeStore.exportAll` / `restoreAll` (additiv, nichts wird überschrieben)
 - Dialog „Stammbaum öffnen“: „Alle sichern (Backup)“ und „Backup einspielen …“

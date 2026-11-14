@@ -80,7 +80,7 @@ Konzept: [UI-KONZEPT.md](UI-KONZEPT.md), Schritte 0–2. Reihenfolge danach: Ahn
 ## M9 – Feinschliff 🟨
 Reihenfolge (mit Nutzer abgestimmt): Backup, Export, DE/EN, Barrierefreiheit/Mobile, PWA.
 - [x] Schritt 1: Backup/Restore (D32)
-- [ ] Schritt 2: Ausdruck/PDF/SVG-Export
+- [x] Schritt 2: Ausdruck/PDF/SVG-Export (D33, nur Stammbaum-Reiter)
 - [ ] Schritt 3: Zweisprachigkeit (DE/EN)
 - [ ] Schritt 4: Barrierefreiheit, Mobile (inkl. Karte über den 180.-Längengrad)
 - [ ] Schritt 5: optional PWA (offline)

@@ -179,7 +179,7 @@
     <div class="stage" class:hidden={tab !== "tree"}>
       {#if data}
         <!-- {#key}: bei anderen Daten wird die Ansicht komplett neu aufgebaut -->
-        {#key data}<TreeViewer bind:this={viewer} {data} {graph} {startId} onFocusChange={(id) => (focusId = id)} />{/key}
+        {#key data}<TreeViewer bind:this={viewer} {data} {graph} {startId} title={treeName} onFocusChange={(id) => (focusId = id)} />{/key}
       {:else}
         <p class="empty">Noch kein Stammbaum geöffnet.</p>
       {/if}

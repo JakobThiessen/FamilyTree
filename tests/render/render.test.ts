@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { LayoutSession } from "../../src/core";
 import type { Person, TreeData, Union } from "../../src/core";
-import { Camera, GridIndex, buildScene, badgeRect, lineColor, lifeSpan, initials, isUnknownPerson } from "../../src/render";
+import { Camera, GridIndex, sceneToSvg, xmlEscape, buildScene, badgeRect, lineColor, lifeSpan, initials, isUnknownPerson } from "../../src/render";
 
 const readTree = (file: string): TreeData => JSON.parse(readFileSync(file, "utf8")) as TreeData;
 const persons = (ps: Person[]) => new Map(ps.map((p) => [p.id, p]));
@@ -266,5 +266,33 @@ describe.skipIf(!existsSync(big))("Performance: 50.000 Personen", () => {
     expect(build).toBeLessThan(2000);
     expect(cull).toBeLessThan(20);
     expect(seen).toBeLessThan(scene.cards.length + scene.edges.length);
+  });
+});
+
+describe("SVG-Export", () => {
+  const build = () => {
+    const { ps, us } = tinyTree();
+    const r = new LayoutSession({ persons: ps, unions: us }).layout({ focusId: "c", up: 1, down: 1, mode: "family" });
+    return buildScene(r, persons(ps));
+  };
+
+  it("schreibt ein gültiges, eigenständiges SVG mit allen Karten", () => {
+    const scene = build();
+    const { svg, width, height } = sceneToSvg(scene, { title: "Familie <Beispiel> & Co" });
+    expect(svg.startsWith("<svg xmlns=")).toBe(true);
+    expect(svg.trimEnd().endsWith("</svg>")).toBe(true);
+    expect(width).toBeGreaterThan(0);
+    expect(height).toBeGreaterThan(0);
+    for (const c of scene.cards) expect(svg).toContain(xmlEscape(c.name));
+    expect(svg).toContain("Familie &lt;Beispiel&gt; &amp; Co"); // Titel wird maskiert
+    expect(svg).toContain("stroke-dasharray"); // vermutete Verbindung / Karte gestrichelt
+  });
+
+  it("Dunkel und Hell unterscheiden sich im Hintergrund, leere Szene wirft nicht", () => {
+    const scene = build();
+    expect(sceneToSvg(scene, { theme: "dark" }).svg).toContain("#0b0e1a");
+    expect(sceneToSvg(scene, { theme: "light" }).svg).toContain('fill="#ffffff"');
+    const empty = buildScene({ nodes: [], bands: [], unions: [], bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 }, focusKey: null } as never, new Map());
+    expect(sceneToSvg(empty).svg).toContain("</svg>");
   });
 });

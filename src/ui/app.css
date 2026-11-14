@@ -23,3 +23,12 @@ button.primary { background: var(--accent); color: #07110f; border-color: var(--
 button.link { background: none; border: 0; padding: 0; color: #8ab4ff; text-align: left; }
 button.link:hover { text-decoration: underline; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Druck (M9, D33): nur der Druckbereich mit dem SVG des Stammbaums erscheint. */
+#print-root { display: none; }
+@media print {
+  body > *:not(#print-root):not(style) { display: none !important; }
+  #print-root { display: block; }
+  #print-root svg { width: 100%; height: auto; max-height: 100vh; }
+  html, body { background: #fff !important; }
+}

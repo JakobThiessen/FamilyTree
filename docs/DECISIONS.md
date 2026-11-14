@@ -175,3 +175,11 @@ Ersetzt in D23 die **Linienführung** (Sammelschienen und Spuren sind nur noch Z
 - **UI:** Im Dialog „Stammbaum öffnen“ unter den gespeicherten Bäumen: „Alle sichern (Backup)“ und „Backup einspielen …“.
 - **Nicht enthalten:** Ortskoordinaten aus Wikidata-Abfragen (`localStorage`, D31) – sie sind abgeleitet und lassen sich neu abfragen.
 - **Keine neue Abhängigkeit.**
+
+## D33 – Export: SVG aus der Szene, Druck/PDF über den Browser (M9, Schritt 2, 2026-11-14)
+- **Ein Erzeuger für alles:** `src/render/svgExport.ts` (`sceneToSvg(scene, {theme, title, margin})`, reines TS) baut aus derselben `Scene` wie die Zeichenfläche ein eigenständiges SVG der **ganzen** aktuellen Ansicht (Karten, Linien mit Stil, „+n“-Knöpfe, Titel). Der Filterzustand der Ansicht wirkt also mit. Das Layout und `TreeView` blieben unverändert.
+- **Schema:** Standard „hell“ (weißer Grund, Familienfarben um 35 % abgedunkelt, damit sie auf Papier lesbar sind); „dunkel“ wie am Bildschirm ist als Option vorhanden, im UI nicht angeboten.
+- **Druck/PDF ohne Bibliothek:** Das SVG kommt in einen temporären Druckbereich `#print-root`, `@media print` in `app.css` blendet alles andere aus, `@page` wird quer oder hoch gesetzt (A4). PDF = im Druckdialog „Als PDF speichern“. Text bleibt dabei Text (durchsuchbar), Vektoren bleiben scharf. Eine PDF-Bibliothek wäre nur für ein Speichern ohne Dialog nötig, dafür nicht gerechtfertigt.
+- **UI:** Knöpfe „SVG“ und „Druck“ neben dem Zoom im Reiter Stammbaum. Titel = Baumname und Fokusperson. Rolle zur Fokusperson steht nicht im Export.
+- **Grenzen:** Sehr große Ansichten (viele tausend Karten) ergeben ein großes SVG; Seite wird dann klein skaliert. Ahnen, Zeitleiste und Karte haben noch keinen Export.
+- **Keine neue Abhängigkeit.**

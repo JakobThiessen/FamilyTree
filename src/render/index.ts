@@ -6,3 +6,5 @@ export type { Scene, SceneCard, SceneEdge, LineStyle, LineMode, SceneOptions, Ba
 export { TreeView, LOD_TEXT, LOD_DETAIL, LOD_ROLE, LOD_CURVE } from "./treeView";
 export type { DrawStats, TreeViewEvents } from "./treeView";
 export { lineColor, isUnknownPerson, initials, displayName, lifeSpan, LINE_COLORS, COLORS } from "./style";
+export { sceneToSvg, xmlEscape } from "./svgExport";
+export type { SvgExport, SvgExportOptions, SvgTheme } from "./svgExport";

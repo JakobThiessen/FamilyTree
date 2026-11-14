@@ -7,7 +7,7 @@
   import type { FamilyGraph } from "../core";
   import type { LayoutResult } from "../core/layout";
   import type { Person, PersonId, TreeData, ViewRequest } from "../core/types";
-  import { TreeView, COLORS } from "../render";
+  import { TreeView, COLORS, sceneToSvg } from "../render";
   import type { DrawStats, LineMode } from "../render";
   import { LayoutClient } from "../workers/layoutClient";
 
@@ -16,6 +16,7 @@
     graph,
     startId,
     onFocusChange,
+    title = "",
   }: {
     data: TreeData;
     /** Verwandtschaftsgraph für die Rolle zur Fokusperson auf den Karten */
@@ -23,6 +24,8 @@
     /** Fokus beim Aufbau, sonst die erste Person */
     startId?: PersonId;
     onFocusChange?: (id: PersonId) => void;
+    /** Baumname, steht als Überschrift im Export */
+    title?: string;
   } = $props();
 
   let canvas: HTMLCanvasElement;
@@ -155,6 +158,50 @@
     view?.setInset(panelOpen && window.innerWidth > 800 ? 264 : 0);
   });
 
+  /** Export-Titel: Baumname und Fokusperson. */
+  function exportTitle(): string {
+    const p = persons.get(focusId);
+    const who = p ? [p.givenNames, p.surname].filter(Boolean).join(" ") : "";
+    return [title, who && `Fokus: ${who}`].filter(Boolean).join(" – ");
+  }
+
+  /** Die ganze aktuelle Ansicht (nicht nur den Bildschirmausschnitt) als SVG-Datei laden. */
+  function exportSvg() {
+    const scene = view?.scene;
+    if (!scene) return;
+    const { svg } = sceneToSvg(scene, { theme: "light", title: exportTitle() });
+    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(title || "stammbaum").replace(/\.[^.]+$/, "")}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Drucken / als PDF speichern: das SVG kommt in einen Druckbereich (#print-root, siehe app.css),
+   * die Seite wird passend zum Seitenverhältnis quer oder hoch gestellt. Im Druckdialog des Browsers
+   * „Als PDF speichern“ wählen.
+   */
+  function printView() {
+    const scene = view?.scene;
+    if (!scene) return;
+    const { svg, width, height } = sceneToSvg(scene, { theme: "light", title: exportTitle() });
+    const root = document.createElement("div");
+    root.id = "print-root";
+    root.innerHTML = svg;
+    const style = document.createElement("style");
+    style.textContent = `@page { size: A4 ${width >= height ? "landscape" : "portrait"}; margin: 10mm; }`;
+    document.body.append(root, style);
+    const cleanup = () => {
+      root.remove();
+      style.remove();
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+  }
+
   onDestroy(() => {
     view?.dispose();
     client?.dispose();
@@ -222,6 +269,8 @@
     <button onclick={() => view?.fit()} title="Ganze Ansicht einpassen">Einpassen</button>
     <button onclick={() => view?.zoomBy(1.25)} aria-label="Hineinzoomen">+</button>
     <button onclick={() => view?.zoomBy(0.8)} aria-label="Herauszoomen">−</button>
+    <button onclick={exportSvg} title="Ganze Ansicht als SVG-Datei speichern">SVG</button>
+    <button onclick={printView} title="Ansicht drucken oder als PDF speichern">Druck</button>
   </div>
 
   {#if error}<p class="error">Fehler: {error}</p>{/if}
