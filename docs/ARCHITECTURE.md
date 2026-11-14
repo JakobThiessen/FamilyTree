@@ -50,17 +50,17 @@
 - `LayoutResult` → `buildScene` (`scene.ts`, reines TS: Karten, rechtwinklige Linien, Raster-Indizes) → `TreeView` (`treeView.ts`, Canvas 2D, Zoom/Verschieben, Culling, Detailstufen, Klicks als Ereignisse). `Camera` und `GridIndex` sind reines TS und getestet.
 - `src/ui/TreeViewer.svelte` ist nur die dünne Hülle: Modus, Tiefe, `LayoutClient`, Ereignisse von `TreeView` in neue Layout-Anfragen übersetzen. Details in DECISIONS D21 und D23.
 
-## Provider-Schnittstelle (Entwurf)
+## Provider-Schnittstelle (`src/providers`, M8, D25/D26)
 
 ```ts
 interface Provider {
-  id: string;
-  search(query: PersonQuery): Promise<ExternalPerson[]>;
-  fetchRelatives(ref: ExternalRef, depth: number): Promise<ImportBatch>;
+  id: string; label: string; needsKey: boolean; disclosure: string;
+  search(query: PersonQuery, ctx?): Promise<ExternalPerson[]>;
+  fetchRelatives(ref: ExternalRef, ctx?): Promise<ImportBatch>; // Eltern, Partner, Kinder
 }
 ```
 
-Treffer werden als `assumed` importiert und nie automatisch mit vorhandenen Personen verschmolzen.
+`wikidata.ts` (SPARQL), `wikitree.ts` (Adresse einstellbar, kein CORS), `familysearch.ts` (Gerüst). `adoptBatch` (`adopt.ts`, ohne Netz) macht aus einem `ImportBatch` neue Personen mit `status: "assumed"`; Dubletten schlägt `src/core/duplicates.ts` nur vor. Treffer werden nie automatisch mit vorhandenen Personen verschmolzen. Die Oberfläche (`OnlineDialog.svelte`) löst Abfragen nur auf Klick aus.
 
 ## Abhängigkeiten (geplant)
 

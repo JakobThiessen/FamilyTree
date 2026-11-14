@@ -4,6 +4,18 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M8)
+- Provider-Schnittstelle `src/providers` (reines TS): `Provider` (`search`, `fetchRelatives`), `ExternalPerson`, `ImportBatch`, `ProviderError` (`network`, `http`, `format`, `config`, `unsupported`); `fetch` ist über den Kontext austauschbar (Tests ohne Netz)
+- Wikidata (`wikidata.ts`, SPARQL, Volltextsuche nach Menschen, Geburt/Tod mit Genauigkeit, Eltern/Partner/Kinder), WikiTree (`wikitree.ts`, `searchPerson`/`getRelatives`, Adresse einstellbar), FamilySearch (`familysearch.ts`, nur Gerüst: Suche mit Zugriffstoken, ungeprüft, keine Verwandten)
+- Dublettenvorschläge `src/core/duplicates.ts` (`DuplicateFinder`, `findDuplicates`): Name, Jahre, Geschlecht, mit Gründen und Stufe; nie automatisches Zusammenführen
+- Übernahme `src/providers/adopt.ts` (`adoptBatch`, reines TS): neue Personen, Partnerschaften und Kinder-Verknüpfungen mit `status: "assumed"` und Quelle mit Link; „Ist dieselbe Person“ hängt nur Verweis und Notiz an eine vorhandene Person; bereits übernommene Verweise werden wiederverwendet
+- `TreeStore.replaceTree(treeId, data)`: Inhalt eines gespeicherten Baums in einer Transaktion ersetzen
+- Oberfläche: „Online suchen …“ (`OnlineDialog.svelte`) mit Quellenwahl, Hinweis, was gesendet wird, Trefferliste mit Dublettenhinweisen, Übernahme (optional mit Verwandten); `App.svelte` ersetzt/aktualisiert den Baum, springt zur Person und zeigt eine Meldung
+- Vite-Dev-Proxy `/wikitree` (nur `npm run dev`; WikiTree hat kein CORS)
+- Tests `tests/providers` (Anbieter mit nachgebauten Antworten, Dubletten, Übernahme, `replaceTree`)
+- Entscheidungen D25–D27
+- Im Browser geprüft: Wikidata-Suche und Übernahme (mit Verwandten, Dublettenhinweis, „Ist dieselbe Person“), WikiTree über den Dev-Proxy (Suche, Übernahme mit Verwandten, gespeicherter Baum wird aktualisiert und nach Neuladen wieder gelesen), CORS-Fehlermeldung ohne Proxy
+
 ### Hinzugefügt (M7)
 - Oberfläche (Svelte): Kopfleiste (Name, Speichern, GEDCOM-/JSON-Export, Details ein/aus, „Öffnen / Import …“), Zeichenfläche mit Bedienleiste, rechts Suche und Personendetails; auf schmalen Fenstern liegen die Details unter der Zeichenfläche
 - Filter „Direkte Linie / Familie / Alle“ als Knopfgruppe mit Erklärung (Tooltip), Tiefe für Vorfahren und Nachfahren, Einpassen, Zoom

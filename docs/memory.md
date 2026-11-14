@@ -14,7 +14,8 @@ Browser-Stammbaumsoftware (TypeScript, Vite, Svelte), die von jeder Fokusperson 
 - Inspiration: Stammbaum-App aus Niklas Steenfatts Video (kein Quellcode öffentlich gefunden). Dunkles Design, Familienlinien-Farben, gestrichelt = unbestätigt, Filter „Direkte Linie / Familie / Alle“.
 
 ## Aktueller Stand
-- M0 bis M7 abgeschlossen. Nächster Schritt: **M8 – Online-Quellen** (Provider-Schnittstelle `src/providers`, WikiTree, Wikidata, optional FamilySearch, Dublettenvorschläge).
+- M0 bis M8 abgeschlossen. Nächster Schritt: **M9 – Feinschliff** (Zeitleiste, Karte, Export PDF/SVG, Barrierefreiheit, Mobile, DE/EN, Backup, PWA).
+- Online-Quellen (`src/providers`, M8, D25–D27): `createWikidataProvider()`, `createWikiTreeProvider({baseUrl})`, `createFamilySearchProvider({accessToken})` mit `search(query, ctx)` und `fetchRelatives(ref, ctx)`; `adoptBatch(treeData, batch, {linkTo, includeRelatives})` (ohne Netz) → `AdoptResult`; Dubletten `DuplicateFinder`/`findDuplicates` in `src/core/duplicates.ts`; `TreeStore.replaceTree(id, data)`. UI: `OnlineDialog.svelte`, Knopf „Online suchen …“. **WikiTree hat kein CORS**: im Browser nur über den Vite-Proxy `/wikitree` (nur `npm run dev`) oder einen eigenen Durchleiter. FamilySearch ist nur Gerüst, ungeprüft. Wikidata-Suche dauert ca. 5 s. WikiTree liefert bei Kindern oft nur Nachnamen.
 - Oberfläche (`src/ui`, M7, D24): `App.svelte` (Kopfleiste, Layout, Drop im ganzen Fenster, Export), `TreeViewer.svelte` (Zeichenfläche, Filter, Tiefe; `focusOn(id)`, `onFocusChange`), `SearchBox.svelte` + `src/core/search.ts` (`PersonSearchIndex`), `PersonDetails.svelte` + `personInfo.ts` (`describePerson`), `ImportDialog.svelte` (Datei lesen, Hinweise, speichern, gespeicherte Bäume). Suche läuft im Hauptthread (D24, gemessen).
 - Darstellung (`src/render`, M6, D21/D23): `buildScene(result, personsMap)` → `Scene`; `new TreeView(canvas, {onFocus, onExpand, onDraw})`, `view.setPersons(map)`, `view.setResult(layoutResult, resetView)`, `fit()`, `zoomBy()`, `dispose()`. `Camera` und `GridIndex` sind reines TS. Canvas 2D (kein PixiJS), Messung in D21. Zeichenzeit bei 9.000 Karten eingepasst ca. 5 ms. „+n“ erhöht die Tiefe oder setzt den Fokus (D23). In `TreeViewer.svelte`: `{#key data}` in `App.svelte` baut die Ansicht bei neuen Daten neu auf.
 - Layout-Kern ist seit M6 ohne Rekursion (D22). Bekannte Grenze: Modus `all` auf dichten Geflechten wird exponentiell breit (D22); Fix gehört in den Kern.
@@ -32,7 +33,8 @@ Browser-Stammbaumsoftware (TypeScript, Vite, Svelte), die von jeder Fokusperson 
 ## Offene Fragen
 - Layout im Modus `all` bei dichten Verwandtschaften (exponentielle Breite, D22) beheben; Kreuzungen in `family` sind nach der rechtwinkligen Linienführung (D23) akzeptabel.
 - Farbe der Familienlinie über Frauen (Mädchenname) statt Nachname? (M9)
-- Personen bearbeiten (Daten ändern, Speicher aktualisieren) – noch nicht geplant, D13 nennt „nach M7“.
+- Personen bearbeiten (Daten ändern, Speicher aktualisieren) – noch nicht geplant; nur die Übernahme externer Treffer ändert Bäume (`replaceTree`, D27). Echtes Zusammenführen von Dubletten fehlt (nur „Ist dieselbe Person“ = Verweis, D26).
+- FamilySearch gegen den echten Dienst prüfen (Schlüssel nötig); WikiTree-Durchleiter für den gebauten Stand – Entscheidung des Nutzers.
 - Mobile Bedienung und Barrierefreiheit der Zeichenfläche (M9).
 - Aufklappen einzelner Äste statt ganzer Schichten (braucht pro Karte erweiterte Anfrage im Kern).
 - Zweisprachigkeit DE/EN ab M9?

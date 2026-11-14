@@ -18,7 +18,8 @@
 | Performance | `example/performance` (generiert): 50.000 Personen, Ziel Layout eines Chunks < 100 ms; Szenenaufbau und Culling (`tests/render`) |
 | Suche/Details | Namenssuche (Akzente, Wortanfang, Jahre), `describePerson` (Quellen, Links, Eltern, Partnerschaften) in `tests/ui` |
 | Darstellung | Kamera, Raster, Szene (Stile, Spuren, „+n“) in `tests/render`; das Zeichnen selbst nur von Hand |
+| Online-Quellen | Anbieter mit nachgebauten Antworten (erfundene Personen, kein Netz), Dubletten, `adoptBatch`, `replaceTree` in `tests/providers` |
 
 ## Manuell
 
-Vor jeder Abnahme im Browser mit den Beispielen prüfen: Zoom, Verschieben, Aufklappen, Fokus wechseln, Suche, Details, Import-Dialog (Datei wählen, Ablegen, Warnungen, Speichern, Neuladen, gespeicherten Baum öffnen).
+Vor jeder Abnahme im Browser mit den Beispielen prüfen: Zoom, Verschieben, Aufklappen, Fokus wechseln, Suche, Details, Import-Dialog (Datei wählen, Ablegen, Warnungen, Speichern, Neuladen, gespeicherten Baum öffnen), „Online suchen …“ (Wikidata direkt, WikiTree über den Dev-Proxy; echte Netzabfragen nur von Hand, nie in `npm test`).

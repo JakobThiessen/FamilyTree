@@ -8,3 +8,4 @@ export * from "./kinship";
 export * from "./inbreeding";
 export * from "./layout";
 export * from "./search";
+export * from "./duplicates";

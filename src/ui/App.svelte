@@ -8,6 +8,8 @@
   import { TreeStore } from "../storage";
   import type { TreeMeta } from "../storage";
   import ImportDialog from "./ImportDialog.svelte";
+  import OnlineDialog from "./OnlineDialog.svelte";
+  import type { AdoptResult } from "../providers";
   import PersonDetails from "./PersonDetails.svelte";
   import SearchBox from "./SearchBox.svelte";
   import TreeViewer from "./TreeViewer.svelte";
@@ -26,6 +28,10 @@
   let dragging = $state(false);
 
   let dialog: ReturnType<typeof ImportDialog>;
+  let online: ReturnType<typeof OnlineDialog>;
+  /** Person, die nach dem Neuaufbau der Ansicht im Fokus stehen soll (nach „Online übernehmen“) */
+  let startId = $state<PersonId | undefined>();
+  let notice = $state("");
   let viewer: ReturnType<typeof TreeViewer> | undefined = $state();
 
   // Abgeleitete Tabellen: einmal pro Baum, nicht pro Fokuswechsel.
@@ -50,6 +56,8 @@
 
   function showTree(d: TreeData, name: string, id: string | null) {
     focusId = "";
+    startId = undefined;
+    notice = "";
     data = d; // {#key data} unten baut die Ansicht neu auf
     treeName = name;
     savedId = id;
@@ -64,6 +72,22 @@
     } catch (e) {
       storageError = "Speichern fehlgeschlagen: " + (e instanceof Error ? e.message : String(e));
     }
+  }
+
+  /** Externe Treffer übernommen (M8): Baum ersetzen, gespeicherten Baum mit aktualisieren, auf die Person springen. */
+  async function adopted(res: AdoptResult, summary: string) {
+    storageError = "";
+    if (store && savedId) {
+      try {
+        await store.replaceTree(savedId, res.data);
+        await refresh();
+      } catch (e) {
+        storageError = "Speichern fehlgeschlagen: " + (e instanceof Error ? e.message : String(e));
+      }
+    }
+    startId = res.rootId;
+    data = res.data; // {#key data} baut die Ansicht neu auf
+    notice = summary + (savedId ? "" : " Noch nicht gespeichert.");
   }
 
   // Dateien lassen sich überall im Fenster ablegen.
@@ -102,16 +126,22 @@
       {#if !savedId}<button onclick={saveCurrent} disabled={!store} title="Im Browser speichern (IndexedDB)">Speichern</button>{/if}
       <button onclick={() => download(exportGedcom(data!), `${baseName()}.ged`, "text/plain;charset=utf-8")}>GEDCOM</button>
       <button onclick={() => download(serializeTreeData(data!), `${baseName()}.json`, "application/json")}>JSON</button>
+      <button onclick={() => online.open()} title="Personen in offenen Quellen suchen (Wikidata, WikiTree)">Online suchen …</button>
       <button class="panel-toggle" onclick={() => (panelOpen = !panelOpen)} aria-pressed={panelOpen}>Details</button>
     {/if}
     <button class="primary" onclick={() => dialog.open()}>Öffnen / Import …</button>
   </header>
 
+  {#if notice}
+    <p class="notice" role="status">{notice} <button class="link" onclick={() => (notice = "")}>Schließen</button></p>
+  {/if}
+  {#if storageError && data}<p class="notice bad" role="alert">{storageError}</p>{/if}
+
   <div class="body" class:with-panel={data && panelOpen}>
     <div class="stage">
       {#if data}
         <!-- {#key}: bei anderen Daten wird die Ansicht komplett neu aufgebaut -->
-        {#key data}<TreeViewer bind:this={viewer} {data} onFocusChange={(id) => (focusId = id)} />{/key}
+        {#key data}<TreeViewer bind:this={viewer} {data} {startId} onFocusChange={(id) => (focusId = id)} />{/key}
       {:else}
         <p class="empty">Noch kein Stammbaum geöffnet.</p>
       {/if}
@@ -124,6 +154,8 @@
     {/if}
   </div>
 </div>
+
+<OnlineDialog bind:this={online} {data} prefill={persons.get(focusId) ?? null} onAdopt={adopted} />
 
 <ImportDialog
   bind:this={dialog}
@@ -147,6 +179,8 @@
   .stage { min-height: 0; min-width: 0; }
   aside { display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; padding: 0.75rem; border-left: 1px solid var(--line); background: var(--panel); }
   .details { flex: 1; min-height: 0; overflow: auto; }
+  .notice { margin: 0; padding: 0.35rem 0.75rem; background: #16302c; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+  .notice.bad { background: #3a1c1c; color: var(--bad); }
   .empty { color: var(--dim); text-align: center; margin-top: 4rem; }
   /* Schmale Fenster: Details unter die Zeichenfläche */
   @media (max-width: 800px) {

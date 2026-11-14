@@ -9,7 +9,11 @@
   import type { DrawStats } from "../render";
   import { LayoutClient } from "../workers/layoutClient";
 
-  let { data, onFocusChange }: { data: TreeData; onFocusChange?: (id: PersonId) => void } = $props();
+  let {
+    data,
+    startId,
+    onFocusChange,
+  }: { data: TreeData; /** Fokus beim Aufbau, sonst die erste Person */ startId?: PersonId; onFocusChange?: (id: PersonId) => void } = $props();
 
   let canvas: HTMLCanvasElement;
   let view: TreeView | null = null;
@@ -66,7 +70,7 @@
     await client.setData(d);
     await client.reset();
     last = null;
-    const first = d.persons[0]?.id ?? "";
+    const first = startId && persons.has(startId) ? startId : (d.persons[0]?.id ?? "");
     focusId = first;
     if (first) onFocusChange?.(first);
     await show();

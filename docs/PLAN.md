@@ -58,12 +58,12 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 - [x] Suche nach Namen, Fokus wechseln
 - [x] Import-Dialog
 
-## M8 – Online-Quellen ⬜
-- [ ] Provider-Schnittstelle (`src/providers`)
-- [ ] WikiTree (offene API)
-- [ ] Wikidata (SPARQL)
-- [ ] FamilySearch (API-Schlüssel nötig, optional)
-- [ ] Dublettenvorschläge, Treffer als „vermutet“ markieren
+## M8 – Online-Quellen ✅
+- [x] Provider-Schnittstelle (`src/providers`)
+- [x] WikiTree (offene API; im Browser nur über Durchleiter, D25)
+- [x] Wikidata (SPARQL)
+- [x] FamilySearch (API-Schlüssel nötig, optional): nur Gerüst, ungeprüft (D25)
+- [x] Dublettenvorschläge, Treffer als „vermutet“ markieren
 
 ## M9 – Feinschliff ⬜
 - [ ] Zeitleiste, Karte (Orte)

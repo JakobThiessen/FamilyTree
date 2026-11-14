@@ -81,12 +81,46 @@ export class TreeStore {
       unionCount: data.unions.length,
       sourceCount: data.sources.length,
     };
+    await this.write(meta, data, false);
+    return meta;
+  }
+
+  /**
+   * Ersetzt den Inhalt eines vorhandenen Baums (z. B. nach dem Übernehmen externer Treffer, M8).
+   * Name und Anlegedatum bleiben. Alles in einer Transaktion: bei einem Fehler bleibt der alte Stand.
+   */
+  async replaceTree(treeId: string, data: TreeData): Promise<TreeMeta> {
+    const old = await this.getTree(treeId);
+    if (!old) throw new TreeNotFoundError(treeId);
+    const meta: TreeMeta = {
+      ...old,
+      updatedAt: Date.now(),
+      personCount: data.persons.length,
+      unionCount: data.unions.length,
+      sourceCount: data.sources.length,
+    };
+    await this.write(meta, data, true);
+    return meta;
+  }
+
+  /** Gemeinsamer Schreibweg von `saveTree` und `replaceTree`. */
+  private async write(meta: TreeMeta, data: TreeData, replace: boolean): Promise<void> {
     const tx = this.db.transaction(["trees", "persons", "unions", "sources"], "readwrite");
     // Alle Schreibaufträge absetzen und gemeinsam abwarten (schneller als einzeln warten).
     const writes: Promise<unknown>[] = [];
     tx.done.catch(() => {}); // Ablehnung wird unten über Promise.all/catch gemeldet, nicht doppelt
     try {
-      writes.push(tx.objectStore("trees").add(meta));
+      if (replace) {
+        const range = treeRange(meta.id);
+        writes.push(
+          tx.objectStore("persons").delete(range),
+          tx.objectStore("unions").delete(range),
+          tx.objectStore("sources").delete(range),
+        );
+        writes.push(tx.objectStore("trees").put(meta));
+      } else {
+        writes.push(tx.objectStore("trees").add(meta));
+      }
       for (const p of data.persons) writes.push(tx.objectStore("persons").put({ ...p, treeId: meta.id }));
       for (const s of data.sources) writes.push(tx.objectStore("sources").put({ ...s, treeId: meta.id }));
       for (const u of data.unions) {
@@ -111,7 +145,6 @@ export class TreeStore {
       }
       throw e;
     }
-    return meta;
   }
 
   async renameTree(treeId: string, name: string): Promise<TreeMeta> {

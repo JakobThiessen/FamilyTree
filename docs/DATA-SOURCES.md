@@ -10,9 +10,9 @@ Wir verwenden nur Daten, die der Nutzer selbst hat (Exportdateien) oder die übe
 |---|---|---|---|
 | GEDCOM-Datei | Import im Browser | M2 | Standardformat, funktioniert mit MyHeritage, Ancestry, Gramps u. a. |
 | JSON (eigenes Format) | Import/Export | M1 | verlustfreies Backup |
-| WikiTree | offene API | M8 | gemeinsamer Weltstammbaum, nur öffentliche Profile |
-| Wikidata | SPARQL / API | M8 | v. a. historisch bedeutsame Personen und Adel |
-| FamilySearch | API mit Entwicklerschlüssel | M8, optional | Schlüssel und Nutzungsbedingungen prüfen |
+| WikiTree | offene API | M8 ✅ | gemeinsamer Weltstammbaum, nur öffentliche Profile; **kein CORS**: im Browser nur über Durchleiter (Dev-Server: `/wikitree`), siehe D25 |
+| Wikidata | SPARQL | M8 ✅ | v. a. historisch bedeutsame Personen und Adel; direkt aus dem Browser möglich |
+| FamilySearch | API mit Entwicklerschlüssel | M8, nur Gerüst | Zugriffstoken des Nutzers nötig; gegen den echten Dienst ungeprüft |
 | MyHeritage | **keine öffentliche Baum-API** | – | nur über GEDCOM-Export des eigenen Kontos |
 
 ## MyHeritage-Export (GEDCOM)
@@ -30,4 +30,4 @@ Wir verwenden nur Daten, die der Nutzer selbst hat (Exportdateien) oder die übe
 
 ## Abgleich
 
-Externe Treffer werden als `assumed` markiert und als **Vorschlag** angezeigt. Zusammenführung nur durch den Nutzer.
+Externe Treffer werden als `assumed` markiert und als **Vorschlag** angezeigt (Dialog „Online suchen …“). Der Dialog zeigt ähnliche Personen im Baum (Name, Jahre, Geschlecht). „Ist dieselbe Person“ hängt nur einen Verweis und eine Notiz an; Zusammenführen gibt es nicht (D26).
