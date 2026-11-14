@@ -7,6 +7,7 @@ export * from "./ancestry";
 export * from "./kinship";
 export * from "./inbreeding";
 export * from "./pedigree";
+export * from "./timeline";
 export * from "./layout";
 export * from "./search";
 export * from "./duplicates";

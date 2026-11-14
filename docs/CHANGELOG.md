@@ -4,6 +4,15 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M9b)
+- `src/core/timeline.ts` (D30): `buildTimeline`, `timelinePersonIds`, `dateRange` (Lebensbalken mit unscharfen Rändern, geschätzte Daten markiert, Marker für Ehen und Kindergeburten, Kürzen auf 600 Zeilen)
+- Reiter „Zeitleiste“ (`TimelineView.svelte`): Balken auf Zeitachse mit Gitter, Auswahl (Fokus-Verwandtschaft oder alle), Tiefe, Zoom, Legende, Klick auf Namen wechselt den Fokus
+- Tests `tests/core/timeline.test.ts`
+- Im Browser geprüft: `example/json/*`, `example/gedcom/*`, `tree-50000.json`
+
+### Geändert
+- `README.md` im Hauptverzeichnis ist jetzt die vollständige Projektübersicht (GitHub-Startseite); `docs/README.md` ist nur noch der Dokumentenindex
+
 ### Hinzugefügt (M9a)
 - `src/core/pedigree.ts` (D29): `buildAhnentafel`, `fatherAndMother`, `pedigreeReport` (Ahnentafel mit Sosa-Nummern je Generation, Verweis auf doppelte Ahnen, Ahnenschwund, Inzuchtkoeffizient)
 - Reiter „Ahnen“ (`AncestorsView.svelte`): Kennzahlen (Ahnenplätze, doppelte Ahnen, Implex, Inzuchtkoeffizient), Liste der doppelten Ahnen, Tabelle je Generation, einstellbare Tiefe (2–20), Klick wechselt den Fokus

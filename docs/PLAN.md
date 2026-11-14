@@ -73,7 +73,7 @@ Konzept: [UI-KONZEPT.md](UI-KONZEPT.md), Schritte 0–2. Reihenfolge danach: Ahn
 
 ## M9a–c – Ahnen, Zeitleiste, Karte ⬜
 - [x] M9a Ahnen: Ahnentafel mit Sosa-Nummern, Ahnenschwund, Inzuchtkoeffizient (D29; Fächerdiagramm offen)
-- [ ] Zeitleiste: `src/core/timeline.ts`, Lebensbalken, unscharfe Daten
+- [x] M9b Zeitleiste: `src/core/timeline.ts`, Lebensbalken, unscharfe Daten (D30)
 - [ ] Karte: Orte als Liste, dann Offline-Weltkarte; Orte per Wikidata auf Auslösung (UI-KONZEPT „Entschieden“)
 - [ ] Optional: Forschung, Quellen
 

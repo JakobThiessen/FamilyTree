@@ -8,6 +8,7 @@
   import { TreeStore } from "../storage";
   import type { TreeMeta } from "../storage";
   import AncestorsView from "./AncestorsView.svelte";
+  import TimelineView from "./TimelineView.svelte";
   import ImportDialog from "./ImportDialog.svelte";
   import OnlineDialog from "./OnlineDialog.svelte";
   import type { AdoptResult } from "../providers";
@@ -37,8 +38,7 @@
     { id: "timeline", label: "Zeitleiste" },
     { id: "map", label: "Karte" },
   ];
-  const SOON: Record<"timeline" | "map", string> = {
-    timeline: "Lebensbalken mit unscharfen Daten",
+  const SOON: Record<"map", string> = {
     map: "Orte und Lebenswege",
   };
 
@@ -188,10 +188,12 @@
     </div>
     {#if tab === "ancestors"}
       <div class="stage"><AncestorsView {graph} {persons} {focusId} onPick={pickKeepTab} /></div>
-    {:else if tab === "timeline" || tab === "map"}
+    {:else if tab === "timeline"}
+      <div class="stage"><TimelineView {graph} {persons} {focusId} onPick={pickKeepTab} /></div>
+    {:else if tab === "map"}
       <div class="stage soon">
         <h2>{TABS.find((t) => t.id === tab)?.label}</h2>
-        <p>Folgt: {SOON[tab]}.</p>
+        <p>Folgt: {SOON.map}.</p>
       </div>
     {/if}
     {#if data && tab === "tree" && panelOpen}

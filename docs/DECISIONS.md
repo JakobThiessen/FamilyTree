@@ -24,7 +24,7 @@ Alles im Browser (IndexedDB), kein Backend. Familiendaten bleiben privat, keine 
 MyHeritage hat keine öffentliche Baum-API, Scraping verstößt gegen die Nutzungsbedingungen.
 
 ## D8 – Dokumente in `docs/` (2026-11-14)
-Alle Dokumente liegen in `docs/`. Im Projektwurzelverzeichnis liegen nur kurze Verweisdateien (`README.md`, `AGENTS.md`), damit Werkzeuge und Git-Plattformen sie finden.
+Alle Dokumente liegen in `docs/`. Im Projektwurzelverzeichnis liegen `README.md` (vollständige Projektübersicht, GitHub-Startseite; `docs/README.md` ist nur der Dokumentenindex) und `AGENTS.md` (kurzer Verweis), damit Werkzeuge und Git-Plattformen sie finden.
 
 ## D9 – Graph toleriert fehlerhafte Daten, `validate()` meldet (2026-11-14)
 Der `FamilyGraph`-Konstruktor wirft nicht bei Dubletten, hängenden Verweisen oder Zyklen. Fehlerhafte Einträge werden übersprungen (bei doppelten IDs gilt der erste) und über `validate()` als `ValidationIssue` mit Code gemeldet. Folge: Ein unsauberer GEDCOM-Import bleibt ladbar und die UI kann Probleme anzeigen. Der Aufrufer muss `validate()` prüfen.
@@ -151,3 +151,11 @@ Ersetzt in D23 die **Linienführung** (Sammelschienen und Spuren sind nur noch Z
 - **Grenzen:** Tiefe höchstens 30 (Sosa-Nummern bleiben exakte Zahlen), Standard 6 im UI, Auswahl bis 20; höchstens 3.000 Zeilen, danach Hinweis „abgeschnitten“. Gemessen mit `tree-50000.json` (stark verflochtener Testbaum): Neuberechnung bei Tiefe 12–20 unter 25 ms.
 - **UI:** `AncestorsView.svelte` zeigt nur an. Klick auf einen Namen setzt den Fokus über `viewer.focusOn`, der Reiter bleibt „Ahnen“.
 - **Keine neue Abhängigkeit.** Fächerdiagramm bleibt offen.
+
+## D30 – Zeitleiste: Lebensbalken aus unscharfen Daten (2026-11-14)
+- **Kern:** `src/core/timeline.ts` mit `buildTimeline(g, ids, opts)`, `timelinePersonIds(g, focusId, scope, depth)` und `dateRange`. Jede Person ergibt eine Zeile (`TimelineRow`): Beginn/Ende als bester Schätzwert, Randspannen `birth`/`death`, Marker für Ehen und Geburten der Kinder.
+- **Unschärfe:** „um“ ±3 Jahre, „vor“ −10 bis Datum, „nach“ Datum bis +10, „zwischen“ von–bis. Die Ränder werden als blasse Flächen am Balkenende gezeichnet.
+- **Schätzen fehlender Daten:** Geburt = frühestes Kind − 30, sonst späteste Elterngeburt + 30, sonst Tod − 70; Tod = Geburt + 70 (höchstens heute; bis 110 Jahre nach der Geburt „vermutlich lebend“). Solche Balken sind halbtransparent und gestrichelt (`startDerived`/`endDerived`). Personen, für die sich nichts schätzen lässt, zählen nur als „ohne datierbaren Zeitpunkt“. Die Werte (70/30 Jahre) sind Optionen.
+- **Auswahl und Grenzen:** `lineage` (Fokus, Vorfahren, Nachfahren bis Tiefe n, Standard 5) oder `all`. Höchstens 600 Zeilen: bei mehr werden die Personen mit dem Beginn am nächsten am Geburtsjahr der Fokusperson gezeigt, mit Hinweis. Gemessen (Node, `tree-50000.json`): `all` 204 ms, `lineage` Tiefe 20 etwa 1 ms.
+- **Darstellung:** `TimelineView.svelte`, ein SVG mit Namensspalte (feststehend), Zoom 1–16 px/Jahr, Farbe nach Familienlinie (`lineColor`), Fokuszeile hervorgehoben. Klick auf einen Namen setzt den Fokus, der Reiter bleibt. SVG genügt wegen der Grenze von 600 Zeilen; eine Canvas-Version wäre nur für „alle 50.000“ nötig.
+- **Keine neue Abhängigkeit.**
