@@ -10,12 +10,13 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 - [x] Typen des Datenmodells (`src/core/types.ts`)
 - [x] Beispieldaten (`example/`)
 
-## M1 – Kern: Datenmodell und Graph ⬜
-- [ ] `Person`, `Union`, `Source`, `Place`, Status/Unsicherheit (siehe DATA-MODEL.md)
-- [ ] `FamilyGraph`: Personen, Unions, Indizes für Eltern/Kinder/Partner
-- [ ] Abfragen: Eltern, Kinder, Partner, Geschwister (voll/halb), Stieffamilie
-- [ ] Datumsmodell mit Unschärfe („um 1750“, „vor 1800“, Zeitraum)
-- [ ] Tests mit `example/json/*`
+## M1 – Kern: Datenmodell und Graph ✅
+- [x] `Person`, `Union`, `Source`, `Place`, Status/Unsicherheit (siehe DATA-MODEL.md)
+- [x] `FamilyGraph`: Personen, Unions, Indizes für Eltern/Kinder/Partner
+- [x] Abfragen: Eltern, Kinder, Partner, Geschwister (voll/halb), Stieffamilie
+- [x] Datumsmodell mit Unschärfe („um 1750“, „vor 1800“, Zeitraum)
+- [x] Tests mit `example/json/*` (inkl. Zyklen, Cousinenheirat)
+- [x] Validierung der Invarianten (`FamilyGraph.validate()`), JSON-Loader
 
 ## M2 – GEDCOM-Import und -Export ⬜
 - [ ] Parser für GEDCOM 5.5.1 (Zeichensätze UTF-8, ANSEL, ISO-8859-1)

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "sources": [],
+  "persons": [
+    { "id": "p_1", "givenNames": "Georg", "surname": "Altmann", "sex": "M", "birth": { "date": { "kind": "exact", "year": 1780 } } },
+    { "id": "p_2", "givenNames": "Margarete", "surname": "Altmann", "sex": "F", "birth": { "date": { "kind": "exact", "year": 1783 } } },
+    { "id": "p_3", "givenNames": "Peter", "surname": "Altmann", "sex": "M", "birth": { "date": { "kind": "exact", "year": 1805 } } },
+    { "id": "p_4", "givenNames": "Sophie", "surname": "Neumann", "sex": "F", "birth": { "date": { "kind": "exact", "year": 1808 } } },
+    { "id": "p_5", "givenNames": "Christine", "surname": "Altmann", "sex": "F", "birth": { "date": { "kind": "exact", "year": 1807 } } },
+    { "id": "p_6", "givenNames": "Wilhelm", "surname": "Bauer", "sex": "M", "birth": { "date": { "kind": "exact", "year": 1804 } } },
+    { "id": "p_7", "givenNames": "Konrad", "surname": "Altmann", "sex": "M", "birth": { "date": { "kind": "exact", "year": 1832 } } },
+    { "id": "p_8", "givenNames": "Agnes", "surname": "Bauer", "sex": "F", "birth": { "date": { "kind": "exact", "year": 1834 } } },
+    { "id": "p_9", "givenNames": "Ludwig", "surname": "Altmann", "sex": "M", "birth": { "date": { "kind": "exact", "year": 1858 } } }
+  ],
+  "unions": [
+    { "id": "u_1", "partnerIds": ["p_1", "p_2"], "kind": "marriage", "order": 1, "children": [ { "personId": "p_3", "kind": "biological" }, { "personId": "p_5", "kind": "biological" } ] },
+    { "id": "u_2", "partnerIds": ["p_3", "p_4"], "kind": "marriage", "order": 1, "children": [ { "personId": "p_7", "kind": "biological" } ] },
+    { "id": "u_3", "partnerIds": ["p_6", "p_5"], "kind": "marriage", "order": 1, "children": [ { "personId": "p_8", "kind": "biological" } ] },
+    { "id": "u_4", "partnerIds": ["p_7", "p_8"], "kind": "marriage", "order": 1, "start": { "date": { "kind": "exact", "year": 1856 } }, "children": [ { "personId": "p_9", "kind": "biological" } ] }
+  ]
+}

@@ -14,7 +14,10 @@ Browser-Stammbaumsoftware (TypeScript, Vite, Svelte), die von jeder Fokusperson 
 - Inspiration: Stammbaum-App aus Niklas Steenfatts Video (kein Quellcode öffentlich gefunden). Dunkles Design, Familienlinien-Farben, gestrichelt = unbestätigt, Filter „Direkte Linie / Familie / Alle“.
 
 ## Aktueller Stand
-- M0 (Projektgerüst) abgeschlossen. Nächster Schritt: **M1 – Kern: Datenmodell und Graph**.
+- M0 (Gerüst) und M1 (Kern: Graph, Abfragen, Validierung, Datumsmodell, JSON-Loader) abgeschlossen. Nächster Schritt: **M2 – GEDCOM-Import und -Export**.
+- Kern-API: `import { FamilyGraph, loadGraph, parseFuzzyDate, formatFuzzyDate } from "src/core"`. Der Graph wirft bei fehlerhaften Daten nicht, sondern sammelt Probleme in `validate()`.
+- Der Loader liest keine Dateien (Aufrufer übergibt Text), damit der Kern in Browser, Worker und Node läuft.
+- Offen für M2: GEDCOM-Daten (`ABT/BEF/AFT/BET`) auf `FuzzyDate` abbilden; `parseFuzzyDate` versteht bisher nur deutschen Text.
 
 ## Offene Fragen
 - PixiJS oder Canvas 2D (Entscheidung bei M6 per Messung).
