@@ -1,0 +1,24 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+.vite/
+
+# Eigene Familiendaten nie einchecken (nur Platzhalter und README)
+imports/*
+!imports/README.md
+!imports/gedcom/
+imports/gedcom/*
+!imports/gedcom/.gitkeep
+!imports/json/
+imports/json/*
+!imports/json/.gitkeep
+!imports/_processed/
+imports/_processed/*
+!imports/_processed/.gitkeep
+
+# Generierte Performance-Testdaten
+example/performance/*.json
+example/performance/*.ged
+!example/performance/README.md

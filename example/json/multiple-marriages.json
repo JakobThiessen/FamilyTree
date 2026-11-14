@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "sources": [],
+  "persons": [
+    { "id": "p_1", "givenNames": "Johann", "surname": "Beispiel", "sex": "M", "birth": { "date": { "kind": "exact", "year": 1800, "month": 3, "day": 12 }, "place": { "name": "Musterdorf" } }, "death": { "date": { "kind": "exact", "year": 1875 } } },
+    { "id": "p_2", "givenNames": "Anna", "surname": "Muster", "sex": "F", "birth": { "date": { "kind": "about", "year": 1802, "text": "um 1802" } }, "death": { "date": { "kind": "exact", "year": 1832 } } },
+    { "id": "p_3", "givenNames": "Maria", "surname": "Vorlage", "sex": "F", "birth": { "date": { "kind": "exact", "year": 1810 } }, "death": { "date": { "kind": "exact", "year": 1845 } } },
+    { "id": "p_4", "givenNames": "Katharina", "surname": "Probe", "sex": "F", "birth": { "date": { "kind": "exact", "year": 1820 } }, "death": { "date": { "kind": "exact", "year": 1890 } } },
+    { "id": "p_5", "givenNames": "Heinrich", "surname": "Beispiel", "sex": "M", "birth": { "date": { "kind": "exact", "year": 1824 } } },
+    { "id": "p_6", "givenNames": "Luise", "surname": "Beispiel", "sex": "F", "birth": { "date": { "kind": "exact", "year": 1830 } }, "death": { "date": { "kind": "exact", "year": 1831 } } },
+    { "id": "p_7", "givenNames": "Friedrich", "surname": "Beispiel", "sex": "M", "birth": { "date": { "kind": "exact", "year": 1834 } } },
+    { "id": "p_8", "givenNames": "Emma", "surname": "Beispiel", "sex": "F", "birth": { "date": { "kind": "exact", "year": 1838 } } },
+    { "id": "p_9", "givenNames": "Karl", "surname": "Beispiel", "sex": "M", "birth": { "date": { "kind": "exact", "year": 1846 } } },
+    { "id": "p_10", "givenNames": "Berta", "surname": "Beispiel", "sex": "F", "birth": { "date": { "kind": "before", "year": 1850, "text": "vor 1850" } }, "status": "assumed" }
+  ],
+  "unions": [
+    { "id": "u_1", "partnerIds": ["p_1", "p_2"], "kind": "marriage", "order": 1, "start": { "date": { "kind": "exact", "year": 1823 } }, "end": { "date": { "kind": "exact", "year": 1832 } }, "endReason": "death", "children": [ { "personId": "p_5", "kind": "biological" }, { "personId": "p_6", "kind": "biological" } ] },
+    { "id": "u_2", "partnerIds": ["p_1", "p_3"], "kind": "marriage", "order": 2, "start": { "date": { "kind": "exact", "year": 1833 } }, "end": { "date": { "kind": "exact", "year": 1845 } }, "endReason": "death", "children": [ { "personId": "p_7", "kind": "biological" }, { "personId": "p_8", "kind": "biological" } ] },
+    { "id": "u_3", "partnerIds": ["p_1", "p_4"], "kind": "marriage", "order": 3, "start": { "date": { "kind": "exact", "year": 1845 } }, "children": [ { "personId": "p_9", "kind": "biological" }, { "personId": "p_10", "kind": "biological", "status": "assumed" } ] }
+  ]
+}
