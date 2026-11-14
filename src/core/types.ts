@@ -39,6 +39,7 @@ export interface Source {
   title: string;
   url?: string;
   note?: string;
+  externalRefs?: ExternalRef[];
 }
 
 export interface LifeEvent {
@@ -94,6 +95,8 @@ export interface Union {
   endReason?: "death" | "divorce" | "unknown";
   children: ChildLink[];
   status?: Status;
+  /** z. B. GEDCOM-ID der Familie (`FAM`) */
+  externalRefs?: ExternalRef[];
 }
 
 /** Vollständiger Stammbaum im JSON-Austauschformat. */

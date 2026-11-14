@@ -18,13 +18,14 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 - [x] Tests mit `example/json/*` (inkl. Zyklen, Cousinenheirat)
 - [x] Validierung der Invarianten (`FamilyGraph.validate()`), JSON-Loader
 
-## M2 – GEDCOM-Import und -Export ⬜
-- [ ] Parser für GEDCOM 5.5.1 (Zeichensätze UTF-8, ANSEL, ISO-8859-1)
-- [ ] Mapping `INDI`, `FAM`, `HUSB`, `WIFE`, `CHIL`, `BIRT`, `DEAT`, `MARR`, `DIV`, `SOUR`, `NOTE`
-- [ ] Mehrfach-Ehen und Unions korrekt abbilden
-- [ ] Import im Browser (Datei auswählen, Drag & Drop) im Worker
-- [ ] Export zurück nach GEDCOM und JSON
-- [ ] Tests mit `example/gedcom/*`
+## M2 – GEDCOM-Import und -Export ✅
+- [x] Parser für GEDCOM 5.5.1 (Zeichensätze UTF-8, UTF-16, ANSEL, ISO-8859-1/ANSI)
+- [x] Mapping `INDI`, `FAM`, `HUSB`, `WIFE`, `CHIL`, `BIRT`, `DEAT`, `MARR`, `DIV`, `SOUR`, `NOTE`
+- [x] Mehrfach-Ehen und Unions korrekt abbilden (`order`, GEDCOM-IDs in `externalRefs`)
+- [x] GEDCOM-Datumsschlüsselwörter (`ABT/BEF/AFT/BET…AND`, `CAL/EST`) auf `FuzzyDate`
+- [x] Import im Browser (Datei auswählen, Drag & Drop) im Worker (Minimal-Oberfläche, echter Dialog in M7)
+- [x] Export zurück nach GEDCOM und JSON
+- [x] Tests mit `example/gedcom/*`, Round-Trip
 
 ## M3 – Speicherung ⬜
 - [ ] IndexedDB-Schema, Import persistieren

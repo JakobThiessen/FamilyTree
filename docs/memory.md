@@ -14,10 +14,12 @@ Browser-Stammbaumsoftware (TypeScript, Vite, Svelte), die von jeder Fokusperson 
 - Inspiration: Stammbaum-App aus Niklas Steenfatts Video (kein Quellcode öffentlich gefunden). Dunkles Design, Familienlinien-Farben, gestrichelt = unbestätigt, Filter „Direkte Linie / Familie / Alle“.
 
 ## Aktueller Stand
-- M0 (Gerüst) und M1 (Kern: Graph, Abfragen, Validierung, Datumsmodell, JSON-Loader) abgeschlossen. Nächster Schritt: **M2 – GEDCOM-Import und -Export**.
-- Kern-API: `import { FamilyGraph, loadGraph, parseFuzzyDate, formatFuzzyDate } from "src/core"`. Der Graph wirft bei fehlerhaften Daten nicht, sondern sammelt Probleme in `validate()`.
-- Der Loader liest keine Dateien (Aufrufer übergibt Text), damit der Kern in Browser, Worker und Node läuft.
-- Offen für M2: GEDCOM-Daten (`ABT/BEF/AFT/BET`) auf `FuzzyDate` abbilden; `parseFuzzyDate` versteht bisher nur deutschen Text.
+- M0, M1 und M2 (GEDCOM-Import/-Export) abgeschlossen. Nächster Schritt: **M3 – Speicherung** (IndexedDB, mehrere Bäume).
+- Kern-API: `import { FamilyGraph, loadGraph, parseFuzzyDate, formatFuzzyDate, serializeTreeData } from "src/core"`. Der Graph wirft bei fehlerhaften Daten nicht, sondern sammelt Probleme in `validate()`.
+- Import-API (`src/import`, reines TS): `importGedcom(textOderBytes) -> { data: TreeData, warnings, charset? }`, `importFileContent(name, bytes)` (JSON oder GEDCOM), `exportGedcom(data)`, `parseGedcomDate`/`formatGedcomDate`. Im Browser läuft der Import über `src/workers/importClient.ts` (`importFileInWorker(file)`) im Web Worker.
+- `App.svelte` ist nur eine Minimal-Oberfläche (Datei laden, Export-Knöpfe); der Baum liegt nur im Arbeitsspeicher. Echter Import-Dialog in M7, Speicherung in M3.
+- Abbildungsregeln und bekannte Verluste des GEDCOM-Imports/-Exports: DECISIONS.md D12.
+- Im Browser (Worker, Drag & Drop) noch nicht von Hand geprüft; Tests und Build laufen.
 
 ## Offene Fragen
 - PixiJS oder Canvas 2D (Entscheidung bei M6 per Messung).

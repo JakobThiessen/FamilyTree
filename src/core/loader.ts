@@ -65,3 +65,8 @@ export function loadGraph(input: string | unknown): FamilyGraph {
   const data = typeof input === "string" ? parseTreeJson(input) : parseTreeData(input);
   return new FamilyGraph(data);
 }
+
+/** Daten -> JSON-Text (lesbar eingerückt). Gegenstück zu `parseTreeJson`. */
+export function serializeTreeData(data: TreeData): string {
+  return JSON.stringify(data, null, 2) + "\n";
+}
