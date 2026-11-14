@@ -41,13 +41,18 @@
   let lineMode = $state<LineMode>("curved");
   let showUnconfirmed = $state(true);
   let showUnknown = $state(true);
-  let panelOpen = $state(true);
+  // Auf schmalen Fenstern startet das Filterpanel eingeklappt (sonst verdeckt es den Baum).
+  let panelOpen = $state(typeof window === "undefined" || !window.matchMedia("(max-width: 800px)").matches);
   let layoutStats = $state<{ persons: number; ghosts: number; layers: number; ms: number } | null>(null);
   let error = $state("");
   let drawStats = $state<DrawStats | null>(null);
   let counts = $state({ visible: 0, total: 0 });
   let legend = $state<{ surname: string; color: string; n: number }[]>([]);
   let hasUnknownLine = $state(false);
+  /** Textalternative zur Zeichenfläche: die Personen der Ansicht als Liste (nach Schicht, dann von links nach rechts) */
+  let cardList = $state<{ id: string; name: string; dates: string; layer: number }[]>([]);
+  let cardListMore = $state(0);
+  const CARD_LIST_MAX = 60;
 
   const MODES: { value: ViewRequest["mode"]; label: MessageKey; hint: MessageKey }[] = [
     { value: "direct", label: "viewer.mode.direct", hint: "viewer.mode.direct.hint" },
@@ -82,7 +87,39 @@
     }
     hasUnknownLine = unknown;
     legend = [...byColor.values()].sort((a, b) => b.n - a.n).slice(0, 8);
+    const real = scene.cards.filter((c) => !c.node.ghost).sort((a, b) => a.node.layer - b.node.layer || a.node.x - b.node.x);
+    cardList = real.slice(0, CARD_LIST_MAX).map((c) => ({ id: c.node.personId, name: c.name, dates: c.dates, layer: c.node.layer }));
+    cardListMore = Math.max(0, real.length - CARD_LIST_MAX);
   }
+
+  /** Tastatur auf der Zeichenfläche: Pfeile verschieben, + / − zoomen, 0 passt ein (WCAG 2.1.1). */
+  function onCanvasKey(e: KeyboardEvent) {
+    if (!view || e.ctrlKey || e.metaKey || e.altKey) return;
+    const step = e.shiftKey ? 240 : 80;
+    let handled = true;
+    switch (e.key) {
+      case "ArrowLeft": view.camera.panBy(step, 0); break;
+      case "ArrowRight": view.camera.panBy(-step, 0); break;
+      case "ArrowUp": view.camera.panBy(0, step); break;
+      case "ArrowDown": view.camera.panBy(0, -step); break;
+      case "+": case "=": view.zoomBy(1.25); break;
+      case "-": case "_": view.zoomBy(0.8); break;
+      case "0": case "Home": view.fit(); break;
+      default: handled = false;
+    }
+    if (handled) {
+      e.preventDefault();
+      view.invalidate();
+    }
+  }
+
+  /** Ansage für Bildschirmleser bei Fokuswechsel und neuer Ansicht. */
+  const announcement = $derived.by(() => {
+    const p = persons.get(focusId);
+    if (!p) return "";
+    const name = [p.givenNames, p.surname].filter(Boolean).join(" ") || t("common.unknownName");
+    return t("viewer.announce", { name, visible: counts.visible, total: counts.total });
+  });
 
   async function show() {
     if (!client || !view || !focusId) return;
@@ -229,7 +266,27 @@
 </script>
 
 <section class="viewer">
-  <canvas bind:this={canvas}></canvas>
+  <!-- Die Zeichenfläche ist per Tab erreichbar und mit der Tastatur bedienbar; die Liste darunter ist ihre Textalternative. -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_interactive_element_to_noninteractive_role -->
+  <canvas
+    bind:this={canvas}
+    tabindex="0"
+    role="application"
+    aria-label={t("viewer.canvas.label")}
+    aria-describedby="viewer-help"
+    onkeydown={onCanvasKey}
+  ></canvas>
+  <p id="viewer-help" class="sr-only">{t("viewer.canvas.help")}</p>
+  <p class="sr-only" role="status" aria-live="polite">{announcement}</p>
+  <nav class="sr-only" aria-label={t("viewer.list.title")}>
+    <h2>{t("viewer.list.title")}</h2>
+    <ul>
+      {#each cardList as c (c.id)}
+        <li><button class="link" onclick={() => focusOn(c.id)}>{c.name} {c.dates}</button></li>
+      {/each}
+      {#if cardListMore}<li>{t("viewer.list.more", { n: cardListMore })}</li>{/if}
+    </ul>
+  </nav>
 
   <aside class="panel" class:closed={!panelOpen}>
     <button class="fold" onclick={() => (panelOpen = !panelOpen)} aria-expanded={panelOpen} title={panelOpen ? t("viewer.filter.collapse") : t("viewer.filter.expand")}>
@@ -278,8 +335,8 @@
     <button onclick={() => view?.fit()} title={t("viewer.fit.title")}>{t("viewer.fit")}</button>
     <button onclick={() => view?.zoomBy(1.25)} aria-label={t("viewer.zoomIn")}>+</button>
     <button onclick={() => view?.zoomBy(0.8)} aria-label={t("viewer.zoomOut")}>−</button>
-    <button onclick={exportSvg} title={t("viewer.svg.title")}>SVG</button>
-    <button onclick={printView} title={t("viewer.print.title")}>{t("viewer.print")}</button>
+    <button class="desk" onclick={exportSvg} title={t("viewer.svg.title")}>SVG</button>
+    <button class="desk" onclick={printView} title={t("viewer.print.title")}>{t("viewer.print")}</button>
   </div>
 
   {#if error}<p class="error">{t("viewer.error", { error })}</p>{/if}
@@ -326,9 +383,11 @@
     color: var(--dim); font-size: 0.78rem; background: color-mix(in srgb, var(--bg) 70%, transparent);
   }
   .info { float: right; }
+  canvas:focus-visible { outline-offset: -3px; }
   .error { position: absolute; top: 0.75rem; right: 0.75rem; margin: 0; color: var(--bad); background: var(--panel); padding: 0.3rem 0.6rem; border-radius: 8px; }
   @media (max-width: 800px) {
-    .panel { width: 12.5rem; }
-    .info { display: none; }
+    .panel { width: min(15.5rem, calc(100% - 1.5rem)); }
+    .info, .hint, .zoom .desk { display: none; }
+    .zoom { bottom: 0.75rem; }
   }
 </style>

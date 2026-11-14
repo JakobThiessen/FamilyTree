@@ -15,7 +15,7 @@ Browser-Stammbaumsoftware (TypeScript, Vite, Svelte), die von jeder Fokusperson 
 - Inspiration: Stammbaum-App aus Niklas Steenfatts Video (kein Quellcode öffentlich gefunden). Dunkles Design, Familienlinien-Farben, gestrichelt = unbestätigt, Filter „Direkte Linie / Familie / Alle“.
 
 ## Aktueller Stand
-- **M9 Feinschliff läuft** (Reihenfolge in PLAN.md). Schritt 1 Backup/Restore fertig (D32): `src/import/backup.ts`, `TreeStore.exportAll/restoreAll`, Knöpfe im `ImportDialog`. Einspielen ist additiv. Schritt 2 Export fertig (D33): `sceneToSvg` in `src/render/svgExport.ts`, Knöpfe „SVG“/„Druck“ in `TreeViewer`, Druck-Stil in `app.css` (nur Stammbaum). Schritt 3 DE/EN fertig (D34): `t("key")` aus `src/ui/lang.svelte.ts`, neue Texte immer in `locales/de.ts` UND `en.ts`; Kern-Formatierer haben optionalen `lang`-Parameter. Nächster Schritt: Barrierefreiheit/Mobile.
+- **M9 Feinschliff läuft** (Reihenfolge in PLAN.md). Schritt 1 Backup/Restore fertig (D32): `src/import/backup.ts`, `TreeStore.exportAll/restoreAll`, Knöpfe im `ImportDialog`. Einspielen ist additiv. Schritt 2 Export fertig (D33): `sceneToSvg` in `src/render/svgExport.ts`, Knöpfe „SVG“/„Druck“ in `TreeViewer`, Druck-Stil in `app.css` (nur Stammbaum). Schritt 3 DE/EN fertig (D34): `t("key")` aus `src/ui/lang.svelte.ts`, neue Texte immer in `locales/de.ts` UND `en.ts`; Kern-Formatierer haben optionalen `lang`-Parameter. Schritt 4 Barrierefreiheit/Mobile fertig (D35): Canvas per Tastatur, `.sr-only`-Personenliste, Skip-Link, schmale Kopfleiste, `unwrapLongitudes`. Nächster Schritt: PWA (optional, offline) – danach M9 abnehmen.
 - M0 bis M8 und **M7b** abgeschlossen (M7b = Zeichenfläche und Rahmen, D28). **M9a (Ahnen, D29)**, **M9b (Zeitleiste, D30)** und **M9c (Karte, D31)** fertig. Nächster Schritt: **M9 – Feinschliff** (optional vorher Forschung/Quellen, UI-KONZEPT.md Schritt 6), danach **M9 – Feinschliff** (Export PDF/SVG, Barrierefreiheit, Mobile, DE/EN, Backup, PWA).
 - Ahnen (M9a, D29): `src/core/pedigree.ts` `buildAhnentafel(g, id, {maxDepth, maxRows})` → `generations[].rows[]` (`sosa`, `personId`, `duplicateOf`), `pedigreeReport` (+ Ahnenschwund, Inzucht). UI `AncestorsView.svelte` (Props `graph`, `persons`, `focusId`, `onPick`); Klick ruft in `App.svelte` `pickKeepTab` (Fokus setzen, Reiter bleibt).
 - Zeitleiste (M9b, D30): `src/core/timeline.ts` `buildTimeline(g, ids, {lifespan, parentAge, maxRows, aroundYear})` → `rows[]` (`start/end`, `birth/death` als Range, `startDerived/endDerived`, `markers`), `timelinePersonIds(g, focus, "lineage"|"all", depth)`. UI `TimelineView.svelte` (SVG, ≤ 600 Zeilen). Browser-Messungen schwanken (gedrosseltes Pane), Kernzeiten in Node messen.
@@ -42,8 +42,8 @@ Browser-Stammbaumsoftware (TypeScript, Vite, Svelte), die von jeder Fokusperson 
 - Farbe der Familienlinie über Frauen (Mädchenname) statt Nachname? (M9)
 - Personen bearbeiten (Daten ändern, Speicher aktualisieren) – noch nicht geplant; nur die Übernahme externer Treffer ändert Bäume (`replaceTree`, D27). Echtes Zusammenführen von Dubletten fehlt (nur „Ist dieselbe Person“ = Verweis, D26).
 - FamilySearch gegen den echten Dienst prüfen (Schlüssel nötig); WikiTree-Durchleiter für den gebauten Stand – Entscheidung des Nutzers.
-- Karte: Linien über den 180.-Längengrad werden quer gezeichnet; Weltkarte ist sehr grob.
-- Mobile Bedienung und Barrierefreiheit der Zeichenfläche (M9).
+- Karte: Weltkarte ist sehr grob (Linien über die Datumsgrenze sind seit D35 behoben).
+- Barrierefreiheit nur geprüft per Code und Browser, nicht mit echtem Bildschirmleser (D35).
 - Aufklappen einzelner Äste statt ganzer Schichten (braucht pro Karte erweiterte Anfrage im Kern).
 
 ## Arbeitsumgebung

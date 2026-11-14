@@ -4,7 +4,7 @@
   // gesucht (nur Ortsnamen gehen raus) und lokal im Browser gemerkt. Solche Orte gelten als „vermutet“.
   import { onDestroy } from "svelte";
   import { fmt, t, tn } from "./lang.svelte";
-  import { collectPlaces, lifePaths, placeKey, timelinePersonIds } from "../core";
+  import { collectPlaces, lifePaths, placeKey, timelinePersonIds, unwrapLongitudes } from "../core";
   import type { Coordinates, FamilyGraph, KnownPlaces, PersonId, TimelineScope } from "../core";
   import { lookupPlaces } from "../providers";
   import { lineColor } from "../render/style";
@@ -175,7 +175,9 @@
   }
 
   const kindLabel = (k: "birth" | "death" | "union") => t(`map.kind.${k}` as const);
-  const polyline = (coords: Coordinates[]) => coords.map((c) => `${c.lon},${-c.lat}`).join(" ");
+  // Über die Datumsgrenze: kurzen Weg nehmen und den Zug zusätzlich um ±360° versetzt zeichnen (sonst ginge er quer durch die Karte)
+  const polyline = (coords: Coordinates[]) => unwrapLongitudes(coords).map((c) => `${c.lon},${-c.lat}`).join(" ");
+  const WRAP_SHIFTS = [-360, 0, 360];
   // Nur so viele Lebenswege zeichnen, wie die Grenze erlaubt (bei „Alle“ in großen Bäumen sonst Zehntausende)
   const drawnPaths = $derived.by(() => {
     const out: { p: (typeof paths)[number]; pts: Coordinates[] }[] = [];
@@ -286,11 +288,13 @@
         {#if mode === "paths"}
           {#each drawnPaths as x (x.p.personId)}
             {@const sel = selectedPerson === x.p.personId}
-            <polyline
-              points={polyline(x.pts)} fill="none" stroke={lineColor(x.p.surname)}
-              stroke-width={sel ? 3 : 1.5} stroke-dasharray="6 4" stroke-linecap="round" stroke-linejoin="round"
-              opacity={selectedPerson && !sel ? 0.25 : 0.85} vector-effect="non-scaling-stroke"
-            ><title>{x.p.name}</title></polyline>
+            {#each WRAP_SHIFTS as dx (dx)}
+              <polyline
+                points={polyline(x.pts)} transform="translate({dx} 0)" fill="none" stroke={lineColor(x.p.surname)}
+                stroke-width={sel ? 3 : 1.5} stroke-dasharray="6 4" stroke-linecap="round" stroke-linejoin="round"
+                opacity={selectedPerson && !sel ? 0.25 : 0.85} vector-effect="non-scaling-stroke"
+              ><title>{x.p.name}</title></polyline>
+            {/each}
           {/each}
           {#if selectedPath}
             {#each selectedPath.stops as s, i (i)}
@@ -308,8 +312,8 @@
             <circle
               cx={p.coords!.lon} cy={-p.coords!.lat} r={px(radius(p.persons) * (mode === "paths" ? 0.6 : 1))}
               class="pin" class:guess={p.coordsFrom === "lookup"} class:sel
-              role="button" tabindex="-1" aria-label={p.name}
-              onclick={() => { mode = "places"; selectPlace(p.key); }} onkeydown={() => {}}
+              aria-hidden="true"
+              onclick={() => { mode = "places"; selectPlace(p.key); }}
               vector-effect="non-scaling-stroke"
             ><title>{p.name}: {tn("map.persons", p.persons)}{p.coordsFrom === "lookup" ? t("map.guessTitle") : ""}</title></circle>
           {/each}

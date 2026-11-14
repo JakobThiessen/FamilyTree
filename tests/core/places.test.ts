@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { loadGraph, collectPlaces, lifePaths, placeKey } from "../../src/core";
+import { unwrapLongitudes } from "../../src/core";
 
 const g = loadGraph(readFileSync("example/json/migration.json", "utf8"));
 
@@ -56,5 +57,24 @@ describe("lifePaths", () => {
 
   it("lässt Personen ohne Ortsangabe weg", () => {
     expect(lifePaths(g, ["nope"])).toEqual([]);
+  });
+});
+
+describe("unwrapLongitudes (Datumsgrenze)", () => {
+  const lon = (xs: { lon: number }[]) => xs.map((c) => c.lon);
+  it("lässt Linien ohne Sprung unverändert", () => {
+    expect(lon(unwrapLongitudes([{ lat: 0, lon: -10 }, { lat: 0, lon: 120 }, { lat: 0, lon: 10 }]))).toEqual([-10, 120, 10]);
+  });
+  it("nimmt über den 180. Längengrad den kurzen Weg", () => {
+    // Fidschi (178) -> Samoa (-172): 10° statt 350° quer durch die Karte
+    expect(lon(unwrapLongitudes([{ lat: -18, lon: 178 }, { lat: -14, lon: -172 }]))).toEqual([178, 188]);
+    // und zurück
+    expect(lon(unwrapLongitudes([{ lat: -14, lon: -172 }, { lat: -18, lon: 178 }]))).toEqual([-172, -182]);
+  });
+  it("verarbeitet mehrere Sprünge nacheinander", () => {
+    expect(lon(unwrapLongitudes([{ lat: 0, lon: 170 }, { lat: 0, lon: -170 }, { lat: 0, lon: 170 }]))).toEqual([170, 190, 170]);
+  });
+  it("kommt mit leerer Liste zurecht", () => {
+    expect(unwrapLongitudes([])).toEqual([]);
   });
 });

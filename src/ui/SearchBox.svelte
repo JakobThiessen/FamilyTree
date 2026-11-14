@@ -65,6 +65,7 @@
     role="combobox"
     aria-expanded={open && hits.length > 0}
     aria-controls="search-hits"
+    aria-activedescendant={open && hits.length ? `search-hit-${active}` : undefined}
     aria-autocomplete="list"
     autocomplete="off"
     oninput={() => { open = true; active = 0; }}
@@ -76,7 +77,7 @@
     <ul id="search-hits" role="listbox">
       {#each hits as h, i (h.id)}
         {@const p = persons.get(h.id)}
-        <li role="option" aria-selected={i === active} class:active={i === active}>
+        <li role="option" id="search-hit-{i}" aria-selected={i === active} class:active={i === active}>
           <button type="button" class="hit" onmousedown={(e) => { e.preventDefault(); pick(h.id); }}>
             <span>{displayName(p)}</span><small>{lifeSpan(p)}</small>
           </button>

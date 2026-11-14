@@ -4,6 +4,7 @@ import type { MessageKey } from "./de";
 export const en: Record<MessageKey, string> = {
   // ---- Header (App) ----
   "app.subtitle": "Family tree in the browser",
+  "app.skip": "Skip to content",
   "app.tabs.label": "Sections",
   "app.tab.tree": "Family tree",
   "app.tab.ancestors": "Ancestors",
@@ -99,6 +100,11 @@ export const en: Record<MessageKey, string> = {
   "viewer.svg.title": "Save the whole view as an SVG file",
   "viewer.print": "Print",
   "viewer.print.title": "Print the view or save it as PDF",
+  "viewer.canvas.label": "Family tree canvas",
+  "viewer.canvas.help": "Arrow keys pan the view, Shift plus arrow pans further, Plus and Minus zoom, Zero fits everything. The people in the view are listed after it; details of the focus person are in the Details section.",
+  "viewer.announce": "Focus: {name}. {visible} of {total} people visible.",
+  "viewer.list.title": "People in the view",
+  "viewer.list.more": "… and {n} more (reduce the depth or use a filter)",
   "viewer.hint": "Drag = pan · Mouse wheel = zoom · Click a card = change focus · “+n” = expand",
   "viewer.error": "Error: {error}",
   "viewer.info": "{persons} cards ({ghosts} ghosts), {layers} layers, layout {ms} ms",

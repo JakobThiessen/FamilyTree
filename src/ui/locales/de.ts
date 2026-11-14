@@ -2,6 +2,7 @@
 export const de = {
   // ---- Kopfleiste (App) ----
   "app.subtitle": "Stammbaum im Browser",
+  "app.skip": "Zum Inhalt springen",
   "app.tabs.label": "Rubriken",
   "app.tab.tree": "Stammbaum",
   "app.tab.ancestors": "Ahnen",
@@ -97,6 +98,11 @@ export const de = {
   "viewer.svg.title": "Ganze Ansicht als SVG-Datei speichern",
   "viewer.print": "Druck",
   "viewer.print.title": "Ansicht drucken oder als PDF speichern",
+  "viewer.canvas.label": "Stammbaum-Zeichenfläche",
+  "viewer.canvas.help": "Pfeiltasten verschieben die Ansicht, Umschalt plus Pfeiltaste verschiebt weiter, Plus und Minus zoomen, Null passt alles ein. Die Personen der Ansicht stehen als Liste dahinter, Details zur Fokusperson im Bereich Details.",
+  "viewer.announce": "Fokus: {name}. {visible} von {total} Personen sichtbar.",
+  "viewer.list.title": "Personen in der Ansicht",
+  "viewer.list.more": "… und {n} weitere (Tiefe verringern oder Filter nutzen)",
   "viewer.hint": "Ziehen = verschieben · Mausrad = zoomen · Klick auf Karte = Fokus wechseln · „+n“ = aufklappen",
   "viewer.error": "Fehler: {error}",
   "viewer.info": "{persons} Karten ({ghosts} Geister), {layers} Schichten, Layout {ms} ms",

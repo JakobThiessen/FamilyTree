@@ -26,6 +26,8 @@ export const LOD_CURVE = 0.12;
 /** Bei mehr Karten fährt die Kamera nicht weich, sondern springt (D28). */
 const ANIMATE_MAX_CARDS = 4000;
 const ANIMATE_MS = 380;
+/** Wer in den Systemeinstellungen weniger Bewegung wünscht, bekommt keine Kamerafahrt (Barrierefreiheit, D35). */
+const prefersReducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const CARD_RADIUS = 14;
 
 export interface DrawStats {
@@ -155,7 +157,7 @@ export class TreeView {
       this.camera.tx += this.insetLeft;
     }
     this.anim = null;
-    if (animateFrom) {
+    if (animateFrom && !prefersReducedMotion()) {
       const to: [number, number, number] = [this.camera.scale, this.camera.tx, this.camera.ty];
       this.camera.scale = animateFrom[0];
       this.camera.tx = animateFrom[1];

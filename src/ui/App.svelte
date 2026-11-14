@@ -30,7 +30,9 @@
   let treeName = $state("");
   let savedId = $state<string | null>(null);
   let focusId = $state<PersonId>("");
-  let panelOpen = $state(true);
+  // Auf schmalen Fenstern (Handy) starten die Details eingeklappt, damit die Zeichenfläche Platz hat.
+  const NARROW = typeof window !== "undefined" && window.matchMedia("(max-width: 800px)").matches;
+  let panelOpen = $state(!NARROW);
   let dragging = $state(false);
 
   // Reiter: ein einfaches $state-Feld statt Router-Paket (UI-KONZEPT, M7b). Noch ohne Inhalt: „folgt“.
@@ -149,6 +151,7 @@
   ondrop={onDrop}
 />
 
+<a class="skip" href="#main">{t("app.skip")}</a>
 <div class="app">
   <header>
     <div class="brand"><strong>FamilyTree</strong><small>{t("app.subtitle")}</small></div>
@@ -166,6 +169,7 @@
     <select class="lang" aria-label={t("app.lang.label")} title={t("app.lang.title")} value={i18n.lang} onchange={(e) => setLang(e.currentTarget.value as Lang)}>
       {#each LANGS as l (l)}<option value={l}>{l.toUpperCase()}</option>{/each}
     </select>
+    <div class="actions">
     {#if data}
       {#if !savedId}<button onclick={saveCurrent} disabled={!store} title={t("app.save.title")}>{t("app.save")}</button>{/if}
       <button onclick={() => download(exportGedcom(data!), `${baseName()}.ged`, "text/plain;charset=utf-8")}>GEDCOM</button>
@@ -174,6 +178,7 @@
       {#if tab === "tree"}<button class="panel-toggle" onclick={() => (panelOpen = !panelOpen)} aria-pressed={panelOpen}>{t("app.details")}</button>{/if}
     {/if}
     <button class="primary" onclick={() => dialog.open()}>{t("app.open")}</button>
+    </div>
   </header>
 
   {#if notice}
@@ -181,7 +186,7 @@
   {/if}
   {#if storageError && data}<p class="notice bad" role="alert">{storageError}</p>{/if}
 
-  <div class="body" class:with-panel={data && tab === "tree" && panelOpen}>
+  <main id="main" tabindex="-1" class="body" class:with-panel={data && tab === "tree" && panelOpen}>
     <!-- Der Stammbaum bleibt beim Reiterwechsel erhalten (nur versteckt), damit Fokus und Kamera nicht verloren gehen. -->
     <div class="stage" class:hidden={tab !== "tree"}>
       {#if data}
@@ -199,11 +204,11 @@
       {#key i18n.lang}<div class="stage"><MapView {graph} {focusId} onPick={pickKeepTab} /></div>{/key}
     {/if}
     {#if data && tab === "tree" && panelOpen}
-      <aside>
+      <aside aria-label={t("app.details")}>
         <div class="details"><PersonDetails {info} onPick={pick} /></div>
       </aside>
     {/if}
-  </div>
+  </main>
 </div>
 
 <OnlineDialog bind:this={online} {data} prefill={persons.get(focusId) ?? null} onAdopt={adopted} />
@@ -225,6 +230,10 @@
   .brand { display: flex; flex-direction: column; line-height: 1.15; letter-spacing: 0.02em; }
   .brand small { color: var(--dim); font-size: 0.7rem; }
   .tabs { display: flex; gap: 0.2rem; margin-left: 0.5rem; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+  .skip { position: absolute; left: 0.5rem; top: -3rem; z-index: 50; background: var(--accent); color: #07110f; padding: 0.4rem 0.8rem; border-radius: 6px; }
+  .skip:focus { top: 0.5rem; }
+  main { outline: none; }
   .tab { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 0.4rem 0.7rem; color: var(--dim); }
   .tab.on { color: var(--text); border-bottom-color: var(--accent); }
   .tab:hover:not(:disabled) { color: var(--text); }
@@ -247,6 +256,13 @@
     .body.with-panel { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(12rem, 1fr) 38%; }
     aside { border-left: 0; border-top: 1px solid var(--line); }
     .name, .brand small { display: none; }
-    .search-slot { width: 10rem; }
+    .search-slot { width: 100%; order: 5; }
+    .search-slot :global(.search) { width: 100%; }
+    /* Reiter und Aktionen laufen in einer eigenen Zeile seitlich scrollbar statt das Fenster zu verbreitern */
+    .tabs { order: 4; width: 100%; margin-left: 0; overflow-x: auto; scrollbar-width: none; flex: none; }
+    .tab { flex: none; white-space: nowrap; }
+    .actions { order: 6; width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.1rem; }
+    .actions :global(button) { flex: none; white-space: nowrap; }
+    header { gap: 0.4rem; padding: 0.4rem 0.6rem; }
   }
 </style>

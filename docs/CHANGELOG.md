@@ -4,6 +4,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M9, Schritt 4: Barrierefreiheit, Mobile)
+- Zeichenfläche per Tastatur (Pfeile, +/-, 0), Textalternative (Personenliste) und Live-Ansage bei Fokuswechsel, Skip-Link, `<main>`, sichtbare Fokusringe, `aria-activedescendant` in der Suche (D35)
+- `prefers-reduced-motion`: keine Übergänge, keine Kamerafahrt (`TreeView.showFocus`, eine Zeile)
+- Mobile: Kopfleiste mit seitlich scrollbaren Zeilen statt Überlaufen, Filterpanel und Details starten eingeklappt auf schmalen Fenstern, größere Touch-Ziele (`pointer: coarse`)
+- Karte: `unwrapLongitudes` (Kern) und Zeichnen mit ±360°-Versatz, Lebenswege über den 180. Längengrad laufen den kurzen Weg; Tests in `tests/core/places.test.ts`
+- Im Browser geprüft (375 px): kein seitliches Scrollen, Tastaturereignisse auf dem Canvas, Ansage und Personenliste
+
 ### Hinzugefügt (Doku und Lizenz)
 - `LICENSE` (MIT) und `"license": "MIT"` in `package.json`
 - `LIZENZ.md`: Lizenzübersicht der Abhängigkeiten (ISC, MIT, Apache-2.0, MPL-2.0 nur in Werkzeugen) und Datenquellen

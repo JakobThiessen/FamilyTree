@@ -137,6 +137,28 @@ export function collectPlaces(g: FamilyGraph, ids?: Iterable<PersonId>, known?: 
   return result.sort((a, b) => b.persons - a.persons || a.name.localeCompare(b.name, "de"));
 }
 
+/**
+ * Längengrade eines Linienzugs „auspacken“: springt der Längengrad zwischen zwei Punkten um mehr als 180°,
+ * läuft die Linie über den 180. Längengrad (Datumsgrenze); dann wird der Punkt um ±360° verschoben, sodass
+ * die Linie auf dem kurzen Weg verläuft statt quer durch die Karte. Die Werte können dadurch außerhalb von
+ * −180…180 liegen; die Karte zeichnet den Zug deshalb zusätzlich um ±360° versetzt (D35).
+ */
+export function unwrapLongitudes(coords: readonly Coordinates[]): Coordinates[] {
+  const out: Coordinates[] = [];
+  let shift = 0;
+  let prev: number | undefined;
+  for (const c of coords) {
+    if (prev !== undefined) {
+      const d = c.lon - prev;
+      if (d > 180) shift -= 360;
+      else if (d < -180) shift += 360;
+    }
+    prev = c.lon;
+    out.push({ lat: c.lat, lon: c.lon + shift });
+  }
+  return out;
+}
+
 /** Lebenswege der genannten Personen; Personen ohne Ortsangabe fehlen. Sortiert nach Geburtsjahr, dann Name. */
 export function lifePaths(g: FamilyGraph, ids: Iterable<PersonId>, known?: KnownPlaces): LifePath[] {
   const coordsFor = (key: string, own: Coordinates | undefined) => own ?? known?.get(key);

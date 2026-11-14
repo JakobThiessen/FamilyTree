@@ -82,7 +82,7 @@ Reihenfolge (mit Nutzer abgestimmt): Backup, Export, DE/EN, Barrierefreiheit/Mob
 - [x] Schritt 1: Backup/Restore (D32)
 - [x] Schritt 2: Ausdruck/PDF/SVG-Export (D33, nur Stammbaum-Reiter)
 - [x] Schritt 3: Zweisprachigkeit (DE/EN, D34)
-- [ ] Schritt 4: Barrierefreiheit, Mobile (inkl. Karte über den 180.-Längengrad)
+- [x] Schritt 4: Barrierefreiheit, Mobile (inkl. Karte über den 180.-Längengrad, D35; ohne Test mit echtem Bildschirmleser)
 - [ ] Schritt 5: optional PWA (offline)
 
 ## Offene Fragen
