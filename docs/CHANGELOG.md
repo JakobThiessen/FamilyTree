@@ -4,6 +4,21 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M7)
+- Oberfläche (Svelte): Kopfleiste (Name, Speichern, GEDCOM-/JSON-Export, Details ein/aus, „Öffnen / Import …“), Zeichenfläche mit Bedienleiste, rechts Suche und Personendetails; auf schmalen Fenstern liegen die Details unter der Zeichenfläche
+- Filter „Direkte Linie / Familie / Alle“ als Knopfgruppe mit Erklärung (Tooltip), Tiefe für Vorfahren und Nachfahren, Einpassen, Zoom
+- `src/ui/PersonDetails.svelte` und `src/ui/personInfo.ts` (`describePerson`, reines TS): Geburt/Tod mit Datum, Ort, Status und Quellen (Titel, Fundstelle, Link nur für http/https), Notizen, Status (belegt/vermutet/unbekannt), Eltern, Partnerschaften mit Kindern, Geschwister (voll/halb), Kennungen; Verwandte sind anklickbar und wechseln den Fokus
+- Namenssuche `src/core/search.ts` (`PersonSearchIndex`, `normalizeText`): ohne Akzente und Groß-/Kleinschreibung, mehrere Wörter, auch Lebensjahre; Wortanfang vor Treffer im Wort. `SearchBox.svelte` mit Trefferliste (Pfeiltasten, Enter, Esc, Taste „/“)
+- Import-Dialog `src/ui/ImportDialog.svelte` (native `<dialog>`): Datei wählen oder irgendwo im Fenster ablegen, Ergebnis mit Zahlen, Zeichensatz, allen Import-Hinweisen und Baumproblemen, Name zum Speichern, „Nur anzeigen“ oder „Speichern und anzeigen“; gespeicherte Bäume öffnen, umbenennen, löschen. Beim Start öffnet sich der Dialog
+- Tests `tests/ui/ui.test.ts` (Suche, Personendetails)
+- Entscheidung D24
+- Im Browser geprüft (Vite-Entwicklungsserver): `example/json/*`, `example/gedcom/*`, 50.000-Personen-Baum (Import, Speichern, Neuladen aus IndexedDB, Suche, Fokus über Suche/Details/Karte, alle drei Filter), kaputte GEDCOM-Datei mit Warnungen
+
+### Geändert (M7)
+- `TreeViewer.svelte`: Fokus kommt auch von außen (`focusOn(id)`), meldet Wechsel über `onFocusChange`; Knopf „Zufällige Person“ entfällt (Suche ersetzt ihn); Zeichenfläche füllt die verfügbare Höhe
+- `App.svelte` neu aufgebaut (die Minimal-Oberfläche aus M2/M3 entfällt); Stil mit CSS-Variablen in `app.css`
+- Test `tests/core/layout.test.ts`: Zeitgrenze für den 1.750-Karten-Chunk von 100 auf 250 ms (allein ca. 55 ms, bei paralleler Ausführung der Testdateien über 100 ms; schlug schon vor M7 sporadisch fehl). Layout-Kern unverändert.
+
 ### Hinzugefügt (M6)
 - Zeichenschicht `src/render` (Canvas 2D, ohne Framework): `Camera` (Zoom um den Zeiger, Verschieben, Einpassen), `GridIndex` (Raster fürs Viewport-Culling), `buildScene` (Karten mit Familienfarbe, rechtwinklige Linien mit Sammelschienen und Spuren), `TreeView` (Zeichnen, Mausrad, Ziehen, Zwei-Finger-Geste, Hover, Klick, Detailstufen)
 - Linienstile: belegt durchgezogen, vermutet (`assumed`/`unknown`) gestrichelt, Adoption/Pflege gepunktet; Geisterkarten blasser mit gestricheltem Rahmen und „↺“

@@ -1,26 +1,45 @@
 <script lang="ts">
-  // Minimale Oberfläche für M2/M3 (Import, Export, gespeicherte Bäume).
-  // Die echte Oberfläche und der Import-Dialog kommen in M7.
+  // Oberfläche: Kopfleiste, Zeichenfläche mit Filter, rechts Suche und Personendetails, Import-Dialog.
+  // Baumdaten mit $state.raw: kein Proxy (IndexedDB kann Proxys nicht speichern, D13).
+  import { onMount } from "svelte";
   import { FamilyGraph, serializeTreeData } from "../core";
-  import type { TreeData } from "../core";
+  import type { Person, PersonId, Source, TreeData } from "../core";
   import { exportGedcom } from "../import/gedcomExport";
-  import type { ImportWarning } from "../import/gedcomImport";
-  import { importFileInWorker } from "../workers/importClient";
   import { TreeStore } from "../storage";
   import type { TreeMeta } from "../storage";
-  import { onMount } from "svelte";
+  import ImportDialog from "./ImportDialog.svelte";
+  import PersonDetails from "./PersonDetails.svelte";
+  import SearchBox from "./SearchBox.svelte";
   import TreeViewer from "./TreeViewer.svelte";
+  import { describePerson } from "./personInfo";
 
   // Speicher (IndexedDB). Wird beim Start geöffnet; fehlt IndexedDB, läuft die App ohne Speicherung.
   let store = $state.raw<TreeStore | null>(null);
   let saved = $state<TreeMeta[]>([]);
   let storageError = $state("");
 
+  let data = $state.raw<TreeData | null>(null);
+  let treeName = $state("");
+  let savedId = $state<string | null>(null);
+  let focusId = $state<PersonId>("");
+  let panelOpen = $state(true);
+  let dragging = $state(false);
+
+  let dialog: ReturnType<typeof ImportDialog>;
+  let viewer: ReturnType<typeof TreeViewer> | undefined = $state();
+
+  // Abgeleitete Tabellen: einmal pro Baum, nicht pro Fokuswechsel.
+  const persons = $derived<Map<PersonId, Person>>(new Map((data?.persons ?? []).map((p) => [p.id, p])));
+  const sources = $derived<Map<string, Source>>(new Map((data?.sources ?? []).map((s) => [s.id, s])));
+  const graph = $derived(data ? new FamilyGraph(data) : null);
+  const info = $derived(graph && focusId ? describePerson(graph, sources, focusId) : null);
+
   async function refresh() {
     if (store) saved = await store.listTrees();
   }
 
   onMount(async () => {
+    dialog.open(); // Startbild: Datei laden oder gespeicherten Baum öffnen
     try {
       store = await TreeStore.open();
       await refresh();
@@ -29,80 +48,31 @@
     }
   });
 
-  /** Zeigt Daten an (nach Import oder Laden) und meldet inhaltliche Probleme des Graphen. */
-  function show(d: TreeData, name: string) {
-    data = d;
-    fileName = name;
-    issues = new FamilyGraph(d).validate().map((i) => `${i.code}: ${i.message}`);
+  function showTree(d: TreeData, name: string, id: string | null) {
+    focusId = "";
+    data = d; // {#key data} unten baut die Ansicht neu auf
+    treeName = name;
+    savedId = id;
   }
 
   async function saveCurrent() {
     if (!store || !data) return;
     try {
-      await store.saveTree(baseName(), data);
+      const meta = await store.saveTree(treeName, data);
+      savedId = meta.id;
       await refresh();
     } catch (e) {
       storageError = "Speichern fehlgeschlagen: " + (e instanceof Error ? e.message : String(e));
     }
   }
 
-  async function openSaved(t: TreeMeta) {
-    if (!store) return;
-    busy = true;
-    try {
-      warnings = [];
-      charset = "";
-      show(await store.loadTree(t.id), t.name);
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
-    } finally {
-      busy = false;
-    }
-  }
-
-  async function renameSaved(t: TreeMeta) {
-    const name = prompt("Neuer Name:", t.name);
-    if (!store || name === null) return;
-    await store.renameTree(t.id, name);
-    await refresh();
-  }
-
-  async function deleteSaved(t: TreeMeta) {
-    if (!store || !confirm(`"${t.name}" endgültig löschen?`)) return;
-    await store.deleteTree(t.id);
-    await refresh();
-  }
-
-  // $state.raw: kein Proxy, denn IndexedDB kann Proxy-Objekte nicht speichern (und große Bäume brauchen keine Tiefenreaktivität).
-  let data = $state.raw<TreeData | null>(null);
-  let fileName = $state("");
-  let charset = $state("");
-  let warnings = $state<ImportWarning[]>([]);
-  let issues = $state<string[]>([]);
-  let error = $state("");
-  let busy = $state(false);
-  let dragging = $state(false);
-
-  async function load(file: File | undefined) {
-    if (!file) return;
-    busy = true;
-    error = "";
-    try {
-      const result = await importFileInWorker(file);
-      charset = result.charset ?? "";
-      warnings = result.warnings;
-      show(result.data, file.name);
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
-    } finally {
-      busy = false;
-    }
-  }
-
+  // Dateien lassen sich überall im Fenster ablegen.
+  const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes("Files") ?? false;
   function onDrop(e: DragEvent) {
+    if (!hasFiles(e)) return;
     e.preventDefault();
     dragging = false;
-    load(e.dataTransfer?.files[0]);
+    dialog.importFile(e.dataTransfer?.files[0]);
   }
 
   /** Lädt Text als Datei herunter (Blob + temporärer Link). */
@@ -114,85 +84,74 @@
     a.click();
     URL.revokeObjectURL(url);
   }
-
-  const baseName = () => fileName.replace(/\.[^.]+$/, "") || "stammbaum";
+  const baseName = () => treeName.replace(/\.[^.]+$/, "") || "stammbaum";
 </script>
 
-<main>
-  <h1>FamilyTree</h1>
-  <p>GEDCOM- oder JSON-Datei laden, anzeigen, speichern (IndexedDB) und exportieren.</p>
+<svelte:window
+  ondragover={(e) => { if (hasFiles(e)) { e.preventDefault(); dragging = true; } }}
+  ondragleave={(e) => { if (!e.relatedTarget) dragging = false; }}
+  ondrop={onDrop}
+/>
 
-  <label
-    class="drop"
-    class:dragging
-    ondragover={(e) => { e.preventDefault(); dragging = true; }}
-    ondragleave={() => (dragging = false)}
-    ondrop={onDrop}
-  >
-    <input type="file" accept=".ged,.gedcom,.json" onchange={(e) => load(e.currentTarget.files?.[0])} />
-    {busy ? "Lese Datei …" : "Datei hierher ziehen oder klicken"}
-  </label>
+<div class="app">
+  <header>
+    <strong class="brand">FamilyTree</strong>
+    {#if data}<span class="name" title={treeName}>{treeName}</span>{/if}
+    <span class="grow"></span>
+    {#if data}
+      {#if !savedId}<button onclick={saveCurrent} disabled={!store} title="Im Browser speichern (IndexedDB)">Speichern</button>{/if}
+      <button onclick={() => download(exportGedcom(data!), `${baseName()}.ged`, "text/plain;charset=utf-8")}>GEDCOM</button>
+      <button onclick={() => download(serializeTreeData(data!), `${baseName()}.json`, "application/json")}>JSON</button>
+      <button class="panel-toggle" onclick={() => (panelOpen = !panelOpen)} aria-pressed={panelOpen}>Details</button>
+    {/if}
+    <button class="primary" onclick={() => dialog.open()}>Öffnen / Import …</button>
+  </header>
 
-  {#if error}<p class="error">Fehler: {error}</p>{/if}
-
-  {#if storageError}<p class="error">{storageError}</p>{/if}
-
-  {#if saved.length}
-    <section>
-      <h2>Gespeicherte Bäume</h2>
-      <ul>
-        {#each saved as t (t.id)}
-          <li>
-            <strong>{t.name}</strong> ({t.personCount} Personen)
-            <button onclick={() => openSaved(t)}>Laden</button>
-            <button onclick={() => renameSaved(t)}>Umbenennen</button>
-            <button onclick={() => deleteSaved(t)}>Löschen</button>
-          </li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
-
-  {#if data}
-    <section>
-      <h2>{fileName}</h2>
-      <p>
-        {data.persons.length} Personen, {data.unions.length} Partnerschaften, {data.sources.length} Quellen
-        {#if charset}(Zeichensatz: {charset}){/if}
-      </p>
-      <button onclick={saveCurrent} disabled={!store}>Im Browser speichern</button>
-      <button onclick={() => download(exportGedcom(data!), `${baseName()}.ged`, "text/plain;charset=utf-8")}>
-        Als GEDCOM exportieren
-      </button>
-      <button onclick={() => download(serializeTreeData(data!), `${baseName()}.json`, "application/json")}>
-        Als JSON exportieren
-      </button>
-
-      <!-- {#key}: bei anderen Daten wird die Ansicht komplett neu aufgebaut -->
-      {#key data}<TreeViewer {data} />{/key}
-
-      {#if warnings.length}
-        <h3>Hinweise beim Import ({warnings.length})</h3>
-        <ul>
-          {#each warnings.slice(0, 50) as w}<li>{w.line ? `Zeile ${w.line}: ` : ""}{w.message}</li>{/each}
-        </ul>
+  <div class="body" class:with-panel={data && panelOpen}>
+    <div class="stage">
+      {#if data}
+        <!-- {#key}: bei anderen Daten wird die Ansicht komplett neu aufgebaut -->
+        {#key data}<TreeViewer bind:this={viewer} {data} onFocusChange={(id) => (focusId = id)} />{/key}
+      {:else}
+        <p class="empty">Noch kein Stammbaum geöffnet.</p>
       {/if}
-      {#if issues.length}
-        <h3>Probleme im Baum ({issues.length})</h3>
-        <ul>{#each issues.slice(0, 50) as i}<li>{i}</li>{/each}</ul>
-      {/if}
-    </section>
-  {/if}
-</main>
+    </div>
+    {#if data && panelOpen}
+      <aside>
+        <SearchBox {persons} onPick={(id) => viewer?.focusOn(id)} />
+        <div class="details"><PersonDetails {info} onPick={(id) => viewer?.focusOn(id)} /></div>
+      </aside>
+    {/if}
+  </div>
+</div>
+
+<ImportDialog
+  bind:this={dialog}
+  {store}
+  {saved}
+  {storageError}
+  {dragging}
+  canClose={data !== null}
+  onShow={showTree}
+  onSaved={refresh}
+/>
 
 <style>
-  main { padding: 1.5rem; max-width: 90rem; margin: 0 auto; }
-  .drop {
-    display: block; padding: 2rem; border: 2px dashed #888; border-radius: 8px;
-    text-align: center; cursor: pointer;
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .brand { letter-spacing: 0.02em; }
+  .name { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 30vw; }
+  .grow { flex: 1; }
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
+  .body.with-panel { grid-template-columns: minmax(0, 1fr) 22rem; }
+  .stage { min-height: 0; min-width: 0; }
+  aside { display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; padding: 0.75rem; border-left: 1px solid var(--line); background: var(--panel); }
+  .details { flex: 1; min-height: 0; overflow: auto; }
+  .empty { color: var(--dim); text-align: center; margin-top: 4rem; }
+  /* Schmale Fenster: Details unter die Zeichenfläche */
+  @media (max-width: 800px) {
+    .body.with-panel { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(12rem, 1fr) 38%; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+    .name { display: none; }
   }
-  .drop.dragging { border-color: #4a9; background: rgba(70, 170, 150, 0.1); }
-  .drop input { display: none; }
-  .error { color: #d55; }
-  button { margin-right: 0.5rem; }
 </style>

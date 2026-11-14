@@ -52,11 +52,11 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 - [x] Farben pro Familienlinie
 - [x] Performance-Test mit 50.000 Personen (`example/performance`)
 
-## M7 – Oberfläche ⬜
-- [ ] Svelte-Layout, Filter („Direkte Linie / Familie / Alle“)
-- [ ] Personendetails mit Quellen, Notizen, Status
-- [ ] Suche nach Namen, Fokus wechseln
-- [ ] Import-Dialog
+## M7 – Oberfläche ✅
+- [x] Svelte-Layout, Filter („Direkte Linie / Familie / Alle“)
+- [x] Personendetails mit Quellen, Notizen, Status
+- [x] Suche nach Namen, Fokus wechseln
+- [x] Import-Dialog
 
 ## M8 – Online-Quellen ⬜
 - [ ] Provider-Schnittstelle (`src/providers`)

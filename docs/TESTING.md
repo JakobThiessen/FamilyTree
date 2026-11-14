@@ -16,8 +16,9 @@
 | GEDCOM | verschiedene Zeichensätze, fehlerhafte Zeilen, leere Namen |
 | Suche | bidirektionale Suche findet **alle** gemeinsamen Vorfahren |
 | Performance | `example/performance` (generiert): 50.000 Personen, Ziel Layout eines Chunks < 100 ms; Szenenaufbau und Culling (`tests/render`) |
+| Suche/Details | Namenssuche (Akzente, Wortanfang, Jahre), `describePerson` (Quellen, Links, Eltern, Partnerschaften) in `tests/ui` |
 | Darstellung | Kamera, Raster, Szene (Stile, Spuren, „+n“) in `tests/render`; das Zeichnen selbst nur von Hand |
 
 ## Manuell
 
-Vor jeder Abnahme im Browser mit den Beispielen prüfen: Zoom, Verschieben, Aufklappen, Fokus wechseln.
+Vor jeder Abnahme im Browser mit den Beispielen prüfen: Zoom, Verschieben, Aufklappen, Fokus wechseln, Suche, Details, Import-Dialog (Datei wählen, Ablegen, Warnungen, Speichern, Neuladen, gespeicherten Baum öffnen).
