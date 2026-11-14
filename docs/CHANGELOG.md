@@ -4,6 +4,14 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M7b)
+- Zeichenfläche (`src/render`, D28): Verbindungen als S-Kurven (umschaltbar „geschwungen / rechtwinklig“, Standard geschwungen), Karten mit größerem Eckenradius und Avatar-Kreis mit Initialen in der Familienfarbe, Leuchten nur bei Fokus und Hover, Hintergrundverlauf, weiche Kamerafahrt bei Fokuswechsel; bei starkem Herauszoomen Kurven als Gerade
+- `buildScene(result, persons, options)` mit `lineMode`, `showUnconfirmed`, `showUnknown`; `Scene.visiblePersons/totalPersons`; `isUnknownPerson`, `initials` in `style.ts`; `TreeView.setOptions`, `setInset`, `visibleCounts`, Ereignis `roleOf`
+- Rahmen (`App.svelte`): Kopfleiste mit Reitern Stammbaum · Ahnen · Zeitleiste · Karte (Forschung und Quellen deaktivierte Platzhalter), Suche in der Kopfleiste (springt immer zum Stammbaum), DE/EN-Platzhalter; Reiterwechsel über ein `$state`-Feld, der Stammbaum bleibt dabei erhalten; Ahnen, Zeitleiste, Karte zeigen „Folgt“
+- Stammbaum-Panel (`TreeViewer.svelte`): schwebendes, einklappbares Filterpanel mit Direkte Linie / Familie / Alle, „x von y Personen sichtbar“, Schaltern „Unbestätigte Verbindungen“ und „Unbekannte Personen“, Tiefe, Familienlinien-Legende (bis 8 Nachnamen mit Farbe und Zahl), Linienlegende und Linienführung; Rolle zur Fokusperson auf den Karten (`describeRelationship`, ab Zoom 0,55); Zoomknöpfe schweben unten rechts
+- Tests in `tests/render` (Kurven, Filter, Initialen); Entscheidung D28 mit Messung
+- Im Browser geprüft: `example/json/*`, `example/gedcom/*`, `tree-50000.json` (Zeichenzeit 0,1–3,6 ms), Reiterwechsel, Suche aus einem anderen Reiter, Filterschalter
+
 ### Hinzugefügt (M8)
 - Provider-Schnittstelle `src/providers` (reines TS): `Provider` (`search`, `fetchRelatives`), `ExternalPerson`, `ImportBatch`, `ProviderError` (`network`, `http`, `format`, `config`, `unsupported`); `fetch` ist über den Kontext austauschbar (Tests ohne Netz)
 - Wikidata (`wikidata.ts`, SPARQL, Volltextsuche nach Menschen, Geburt/Tod mit Genauigkeit, Eltern/Partner/Kinder), WikiTree (`wikitree.ts`, `searchPerson`/`getRelatives`, Adresse einstellbar), FamilySearch (`familysearch.ts`, nur Gerüst: Suche mit Zugriffstoken, ungeprüft, keine Verwandten)

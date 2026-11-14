@@ -11,12 +11,15 @@ export const LINE_COLORS = [
 
 export const COLORS = {
   background: "#0b0e1a",
+  backgroundTop: "#111833",
+  backgroundBottom: "#080b14",
   card: "#161b2e",
   cardGhost: "#10142344",
   text: "#e6e8f0",
   textDim: "#9aa3bf",
   edgeNeutral: "#6c7596",
   focus: "#ffffff",
+  focusGlow: "#4dd0c8",
   badge: "#2a3354",
   badgeText: "#e6e8f0",
 };
@@ -42,6 +45,19 @@ export function displayName(p: Person | undefined): string {
   if (!p) return "?";
   const name = [p.givenNames, p.surname].filter(Boolean).join(" ").trim();
   return name || "Unbekannt";
+}
+
+/** Person ohne jeden Namen oder ausdrücklich als „unbekannt“ markiert (Filter „Unbekannte Personen“). */
+export function isUnknownPerson(p: Person | undefined): boolean {
+  if (!p) return true;
+  return p.status === "unknown" || (!p.givenNames?.trim() && !p.surname?.trim());
+}
+
+/** Anfangsbuchstaben für den Avatar: Vorname + Nachname, sonst „?“. */
+export function initials(p: Person | undefined): string {
+  const first = p?.givenNames?.trim().charAt(0) ?? "";
+  const last = p?.surname?.trim().charAt(0) ?? "";
+  return ((first + last) || "?").toUpperCase();
 }
 
 /** Kurze Lebensspanne, z. B. „* 1800 – † 1875“, „um 1750 –“ oder leer. Nur Jahre. */

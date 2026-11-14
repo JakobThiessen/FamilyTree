@@ -58,6 +58,12 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 - [x] Suche nach Namen, Fokus wechseln
 - [x] Import-Dialog
 
+## M7b – Zeichenfläche und Rahmen ✅
+Konzept: [UI-KONZEPT.md](UI-KONZEPT.md), Schritte 0–2. Reihenfolge danach: Ahnen, Zeitleiste, Karte (M9a–c), dann M9.
+- [x] Schritt 0: S-Kurven (umschaltbar), Avatar-Karten, Leuchten bei Fokus/Hover, Hintergrundverlauf, weiche Kamerafahrt, Leistung gemessen (D28)
+- [x] Schritt 1: Kopfleiste mit Reitern, Suche oben, DE/EN-Platzhalter, Reiter „folgt“
+- [x] Schritt 2: Filterpanel (Zähler, unbestätigt/unbekannt, Familienlinien- und Linienlegende), Rolle zur Fokusperson auf den Karten
+
 ## M8 – Online-Quellen ✅
 - [x] Provider-Schnittstelle (`src/providers`)
 - [x] WikiTree (offene API; im Browser nur über Durchleiter, D25)
@@ -65,8 +71,13 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 - [x] FamilySearch (API-Schlüssel nötig, optional): nur Gerüst, ungeprüft (D25)
 - [x] Dublettenvorschläge, Treffer als „vermutet“ markieren
 
+## M9a–c – Ahnen, Zeitleiste, Karte ⬜
+- [ ] Ahnen: Ahnentafel mit Sosa-Nummern, Ahnenschwund, Inzuchtkoeffizient
+- [ ] Zeitleiste: `src/core/timeline.ts`, Lebensbalken, unscharfe Daten
+- [ ] Karte: Orte als Liste, dann Offline-Weltkarte; Orte per Wikidata auf Auslösung (UI-KONZEPT „Entschieden“)
+- [ ] Optional: Forschung, Quellen
+
 ## M9 – Feinschliff ⬜
-- [ ] Zeitleiste, Karte (Orte)
 - [ ] Ausdruck/PDF/SVG-Export
 - [ ] Barrierefreiheit, Mobile, Zweisprachigkeit (DE/EN)
 - [ ] Backup/Restore, optional PWA (offline)

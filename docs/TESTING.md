@@ -17,7 +17,7 @@
 | Suche | bidirektionale Suche findet **alle** gemeinsamen Vorfahren |
 | Performance | `example/performance` (generiert): 50.000 Personen, Ziel Layout eines Chunks < 100 ms; Szenenaufbau und Culling (`tests/render`) |
 | Suche/Details | Namenssuche (Akzente, Wortanfang, Jahre), `describePerson` (Quellen, Links, Eltern, Partnerschaften) in `tests/ui` |
-| Darstellung | Kamera, Raster, Szene (Stile, Spuren, „+n“) in `tests/render`; das Zeichnen selbst nur von Hand |
+| Darstellung | Kamera, Raster, Szene (Stile, S-Kurven, Spuren im rechtwinkligen Modus, Filter, „+n“) in `tests/render`; das Zeichnen selbst nur von Hand |
 | Online-Quellen | Anbieter mit nachgebauten Antworten (erfundene Personen, kein Netz), Dubletten, `adoptBatch`, `replaceTree` in `tests/providers` |
 
 ## Manuell

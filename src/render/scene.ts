@@ -2,21 +2,35 @@
  * Szene: aus dem `LayoutResult` und den Personendaten werden zeichenfertige Karten und Linien.
  * Reines TypeScript (ohne DOM), damit der Aufbau in Node getestet und gemessen werden kann.
  *
- * Linienführung (Feinschliff aus M5): rechtwinklig statt schräg. Von jeder Partnerschaft geht ein Stamm
- * nach unten zu einer waagerechten „Sammelschiene“, von dort senkrecht zu jedem Kind. Überlappen sich die
- * Schienen mehrerer Partnerschaften derselben Schicht, bekommen sie versetzte Spuren (Lanes).
+ * Linienführung (D28): Standard sind weiche S-Kurven (Bézier) vom Union-Anker zu jedem Kind. Alternativ
+ * „rechtwinklig“ (D23): Stamm nach unten zu einer waagerechten „Sammelschiene“, von dort senkrecht zu jedem
+ * Kind; überlappen sich die Schienen derselben Schicht, bekommen sie versetzte Spuren (Lanes).
+ * Filter (`SceneOptions`) blenden unbestätigte Verbindungen und unbekannte Personen aus, ohne das Layout zu ändern.
  */
 import type { LayoutNode, LayoutResult, LayoutUnion } from "../core/layout";
 import type { Person, PersonId } from "../core/types";
 import type { Rect } from "./camera";
 import { GridIndex } from "./gridIndex";
-import { COLORS, displayName, lifeSpan, lineColor } from "./style";
+import { COLORS, displayName, initials, isUnknownPerson, lifeSpan, lineColor } from "./style";
 
 export type LineStyle = "solid" | "dashed" | "dotted";
+
+export type LineMode = "curved" | "orthogonal";
+
+export interface SceneOptions {
+  /** Linienführung, Standard `curved` */
+  lineMode?: LineMode;
+  /** Unbestätigte (gestrichelte) Verbindungen zeigen, Standard `true` */
+  showUnconfirmed?: boolean;
+  /** Unbekannte Personen (ohne Namen oder Status „unknown“) zeigen, Standard `true` */
+  showUnknown?: boolean;
+}
 
 export interface SceneCard {
   node: LayoutNode;
   name: string;
+  /** Ein bis zwei Buchstaben für den Avatar-Kreis */
+  initials: string;
   dates: string;
   /** Farbe der Familienlinie */
   color: string;
@@ -26,8 +40,10 @@ export interface SceneCard {
 }
 
 export interface SceneEdge {
-  /** Linienzug als x0,y0,x1,y1,… */
+  /** Linienzug als x0,y0,x1,y1,…; bei `curve` genau vier Punkte einer kubischen Bézierkurve (Start, 2 Stützpunkte, Ende) */
   points: number[];
+  /** Als S-Kurve zeichnen (bei starkem Herauszoomen genügt die Gerade Start–Ende) */
+  curve?: boolean;
   style: LineStyle;
   color: string;
   width: number;
@@ -43,6 +59,10 @@ export interface Scene {
   /** Rahmen aller Karten samt „+n“-Knöpfen */
   bounds: Rect;
   focusKey: string | null;
+  lineMode: LineMode;
+  /** Personen (ohne Geister) nach dem Filter und vor dem Filter */
+  visiblePersons: number;
+  totalPersons: number;
 }
 
 /** Größe und Abstand des „+n“-Knopfes (Weltmaß). */
@@ -79,15 +99,24 @@ function boundsOf(points: number[]): Rect {
   return { minX, minY, maxX, maxY };
 }
 
-export function buildScene(result: LayoutResult, persons: ReadonlyMap<PersonId, Person>): Scene {
+export function buildScene(result: LayoutResult, persons: ReadonlyMap<PersonId, Person>, options: SceneOptions = {}): Scene {
+  const lineMode = options.lineMode ?? "curved";
+  const showUnconfirmed = options.showUnconfirmed ?? true;
+  const showUnknown = options.showUnknown ?? true;
   const cardIndex = new GridIndex();
   const edgeIndex = new GridIndex();
   const cards: SceneCard[] = [];
   const byKey = new Map<string, SceneCard>();
   const bounds: Rect = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
 
+  let totalPersons = 0;
+  let visiblePersons = 0;
   for (const node of result.nodes) {
     const person = persons.get(node.personId);
+    if (!node.ghost) totalPersons++;
+    // Die Fokuskarte bleibt immer stehen, auch wenn sie „unbekannt“ wäre.
+    if (!showUnknown && node.key !== result.focusKey && isUnknownPerson(person)) continue;
+    if (!node.ghost) visiblePersons++;
     const rect: Rect = {
       minX: node.x - node.width / 2,
       maxX: node.x + node.width / 2,
@@ -97,6 +126,7 @@ export function buildScene(result: LayoutResult, persons: ReadonlyMap<PersonId, 
     const card: SceneCard = {
       node,
       name: displayName(person),
+      initials: initials(person),
       dates: lifeSpan(person),
       color: lineColor(person?.surname),
       unconfirmed: unconfirmed(person?.status),
@@ -118,10 +148,67 @@ export function buildScene(result: LayoutResult, persons: ReadonlyMap<PersonId, 
 
   const edges: SceneEdge[] = [];
   const addEdge = (e: SceneEdge): void => {
+    if (!showUnconfirmed && e.style === "dashed") return;
     edgeIndex.insert(edges.length, boundsOf(e.points));
     edges.push(e);
   };
 
+  if (lineMode === "curved") addCurvedEdges(result, byKey, addEdge);
+  else addOrthogonalEdges(result, byKey, addEdge);
+
+  // Partnerlinien zwischen benachbarten Partnern einer Union (waagerecht auf Kartenmitte).
+  for (const u of result.unions) {
+    const partners = u.partnerKeys
+      .map((k) => byKey.get(k))
+      .filter((c): c is SceneCard => !!c)
+      .sort((a, b) => a.node.x - b.node.x);
+    for (let i = 1; i < partners.length; i++) {
+      const a = partners[i - 1] as SceneCard;
+      const b = partners[i] as SceneCard;
+      addEdge({
+        points: [a.rect.maxX, a.node.y, b.rect.minX, b.node.y],
+        style: unconfirmed(u.status) ? "dashed" : "solid",
+        color: COLORS.edgeNeutral,
+        width: u.kind === "marriage" ? 3 : 1.5,
+        ghost: u.ghost,
+      });
+    }
+  }
+
+  return { cards, edges, cardIndex, edgeIndex, bounds, focusKey: result.focusKey, lineMode, visiblePersons, totalPersons };
+}
+
+type AddEdge = (e: SceneEdge) => void;
+
+const childStyle = (kind: string, childStatus: string | undefined, unionStatus: string | undefined): LineStyle =>
+  unconfirmed(childStatus) || unconfirmed(unionStatus) ? "dashed" : kind === "adopted" || kind === "foster" ? "dotted" : "solid";
+
+/** S-Kurven: vom Union-Anker senkrecht los, in der Mitte zwischen Anker und Kind waagerecht, senkrecht am Kind an. */
+function addCurvedEdges(result: LayoutResult, byKey: Map<string, SceneCard>, addEdge: AddEdge): void {
+  for (const u of result.unions) {
+    const partners = u.partnerKeys.map((k) => byKey.get(k)).filter((c): c is SceneCard => !!c);
+    const half = (partners[0]?.node.height ?? 72) / 2;
+    const startY = partners.length >= 2 ? u.y : u.y + half;
+    for (const c of u.children) {
+      const card = byKey.get(c.key);
+      if (!card) continue;
+      const x1 = card.node.x;
+      const y1 = card.rect.minY;
+      const mid = startY + (y1 - startY) / 2;
+      addEdge({
+        points: [u.x, startY, u.x, mid, x1, mid, x1, y1],
+        curve: true,
+        style: childStyle(c.kind, c.status, u.status),
+        color: card.color,
+        width: 1.6,
+        ghost: u.ghost || card.node.ghost,
+      });
+    }
+  }
+}
+
+/** Rechtwinklig (D23): Stamm, Sammelschiene mit Spuren, senkrechte Äste. */
+function addOrthogonalEdges(result: LayoutResult, byKey: Map<string, SceneCard>, addEdge: AddEdge): void {
   // Unions je Schicht, damit sich Sammelschienen auf Spuren verteilen lassen.
   const byLayer = new Map<number, LayoutUnion[]>();
   for (const u of result.unions) {
@@ -185,8 +272,7 @@ export function buildScene(result: LayoutResult, persons: ReadonlyMap<PersonId, 
       });
       for (const c of p.children) {
         const cx = c.card.node.x;
-        const style: LineStyle =
-          unconfirmed(c.status) || unconfirmed(u.status) ? "dashed" : c.kind === "adopted" || c.kind === "foster" ? "dotted" : "solid";
+        const style = childStyle(c.kind, c.status, u.status);
         addEdge({
           points: [u.x, busY, cx, busY, cx, c.card.rect.minY],
           style,
@@ -197,25 +283,4 @@ export function buildScene(result: LayoutResult, persons: ReadonlyMap<PersonId, 
       }
     }
   }
-
-  // Partnerlinien zwischen benachbarten Partnern einer Union (waagerecht auf Kartenmitte).
-  for (const u of result.unions) {
-    const partners = u.partnerKeys
-      .map((k) => byKey.get(k))
-      .filter((c): c is SceneCard => !!c)
-      .sort((a, b) => a.node.x - b.node.x);
-    for (let i = 1; i < partners.length; i++) {
-      const a = partners[i - 1] as SceneCard;
-      const b = partners[i] as SceneCard;
-      addEdge({
-        points: [a.rect.maxX, a.node.y, b.rect.minX, b.node.y],
-        style: unconfirmed(u.status) ? "dashed" : "solid",
-        color: COLORS.edgeNeutral,
-        width: u.kind === "marriage" ? 3 : 1.5,
-        ghost: u.ghost,
-      });
-    }
-  }
-
-  return { cards, edges, cardIndex, edgeIndex, bounds, focusKey: result.focusKey };
 }

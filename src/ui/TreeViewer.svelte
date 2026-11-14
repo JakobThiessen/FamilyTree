@@ -1,19 +1,29 @@
 <script lang="ts">
-  // Zeichenfläche (src/render) plus Bedienleiste: Filter, Tiefe, Zoom.
+  // Reiter „Stammbaum“: Zeichenfläche (src/render) mit schwebendem Filterpanel links (einklappbar).
   // Die Hülle kennt Fokus und Ansicht; Suche und Details leben im Elternteil (App.svelte) und
   // wechseln den Fokus über `focusOn(id)`. Jeder Fokuswechsel meldet sich über `onFocusChange`.
   import { onDestroy, onMount } from "svelte";
+  import { describeRelationship } from "../core";
+  import type { FamilyGraph } from "../core";
   import type { LayoutResult } from "../core/layout";
   import type { Person, PersonId, TreeData, ViewRequest } from "../core/types";
-  import { TreeView } from "../render";
-  import type { DrawStats } from "../render";
+  import { TreeView, COLORS } from "../render";
+  import type { DrawStats, LineMode } from "../render";
   import { LayoutClient } from "../workers/layoutClient";
 
   let {
     data,
+    graph,
     startId,
     onFocusChange,
-  }: { data: TreeData; /** Fokus beim Aufbau, sonst die erste Person */ startId?: PersonId; onFocusChange?: (id: PersonId) => void } = $props();
+  }: {
+    data: TreeData;
+    /** Verwandtschaftsgraph für die Rolle zur Fokusperson auf den Karten */
+    graph: FamilyGraph | null;
+    /** Fokus beim Aufbau, sonst die erste Person */
+    startId?: PersonId;
+    onFocusChange?: (id: PersonId) => void;
+  } = $props();
 
   let canvas: HTMLCanvasElement;
   let view: TreeView | null = null;
@@ -23,9 +33,16 @@
   let up = $state(2);
   let down = $state(2);
   let mode = $state<ViewRequest["mode"]>("family");
+  let lineMode = $state<LineMode>("curved");
+  let showUnconfirmed = $state(true);
+  let showUnknown = $state(true);
+  let panelOpen = $state(true);
   let info = $state("");
   let error = $state("");
   let drawStats = $state<DrawStats | null>(null);
+  let counts = $state({ visible: 0, total: 0 });
+  let legend = $state<{ surname: string; color: string; n: number }[]>([]);
+  let hasUnknownLine = $state(false);
 
   const MODES: { value: ViewRequest["mode"]; label: string; hint: string }[] = [
     { value: "direct", label: "Direkte Linie", hint: "Nur die Person, ihre Vorfahren und Nachfahren" },
@@ -37,6 +54,30 @@
   let ticket = 0;
   /** Letzte angezeigte Anfrage: gleicher Fokus und Modus = Kamera nicht bewegen (inkrementell). */
   let last: ViewRequest | null = null;
+  let persons = new Map<string, Person>();
+
+  /** Zähler und Familienlinien-Legende aus der aktuellen Szene (nach dem Filter). */
+  function refreshPanel() {
+    const scene = view?.scene;
+    if (!view || !scene) return;
+    counts = view.visibleCounts;
+    const byColor = new Map<string, { surname: string; color: string; n: number }>();
+    let unknown = false;
+    for (const c of scene.cards) {
+      const p = persons.get(c.node.personId);
+      const surname = p?.surname?.trim();
+      if (!surname) {
+        unknown = true;
+        continue;
+      }
+      const key = surname.toLowerCase();
+      const e = byColor.get(key);
+      if (e) e.n++;
+      else byColor.set(key, { surname, color: c.color, n: 1 });
+    }
+    hasUnknownLine = unknown;
+    legend = [...byColor.values()].sort((a, b) => b.n - a.n).slice(0, 8);
+  }
 
   async function show() {
     if (!client || !view || !focusId) return;
@@ -48,6 +89,7 @@
       const sameView = last !== null && last.focusId === request.focusId && last.mode === request.mode;
       last = request;
       view.setResult(result, !sameView);
+      refreshPanel();
       error = "";
       info = `${result.stats.persons} Karten (${result.stats.ghosts} Geister), ${result.stats.layers} Schichten, Layout ${result.stats.ms.toFixed(1)} ms`;
     } catch (e) {
@@ -65,7 +107,7 @@
   /** Neue Baumdaten: Worker und Personentabelle füllen, Fokus auf eine sinnvolle Person setzen. */
   async function loadData(d: TreeData) {
     if (!client || !view) return;
-    const persons = new Map<string, Person>(d.persons.map((p) => [p.id, p]));
+    persons = new Map<string, Person>(d.persons.map((p) => [p.id, p]));
     view.setPersons(persons);
     await client.setData(d);
     await client.reset();
@@ -74,6 +116,17 @@
     focusId = first;
     if (first) onFocusChange?.(first);
     await show();
+  }
+
+  /** Rolle der Person zur Fokusperson; „nicht verwandt“ zeigen wir nicht. */
+  function roleOf(personId: PersonId): string | undefined {
+    if (!graph || !focusId || personId === focusId) return undefined;
+    try {
+      const label = describeRelationship(graph, personId, focusId).label;
+      return label === "nicht verwandt" ? undefined : label;
+    } catch {
+      return undefined;
+    }
   }
 
   onMount(() => {
@@ -92,8 +145,14 @@
         show();
       },
       onDraw: (s) => (drawStats = s),
+      roleOf,
     });
     loadData(data);
+  });
+
+  // Das Panel schwebt über der Zeichenfläche: beim Einpassen den Platz links freilassen (nicht auf schmalen Fenstern).
+  $effect(() => {
+    view?.setInset(panelOpen && window.innerWidth > 800 ? 264 : 0);
   });
 
   onDestroy(() => {
@@ -106,32 +165,66 @@
     mode = m;
     show();
   };
+  /** Linienführung und Filter wirken nur auf die Szene, das Layout bleibt (kein neuer Worker-Aufruf). */
+  function applyOptions() {
+    view?.setOptions({ lineMode, showUnconfirmed, showUnknown });
+    refreshPanel();
+  }
 </script>
 
 <section class="viewer">
-  <div class="bar">
-    <div class="seg" role="group" aria-label="Filter">
-      {#each MODES as m (m.value)}
-        <button class:on={mode === m.value} aria-pressed={mode === m.value} title={m.hint} onclick={() => setMode(m.value)}>
-          {m.label}
-        </button>
-      {/each}
-    </div>
-    <label>
-      Vorfahren
-      <input type="number" min="0" max="30" bind:value={up} onchange={() => { up = clampDepth(up); show(); }} />
-    </label>
-    <label>
-      Nachfahren
-      <input type="number" min="0" max="30" bind:value={down} onchange={() => { down = clampDepth(down); show(); }} />
-    </label>
-    <span class="grow"></span>
+  <canvas bind:this={canvas}></canvas>
+
+  <aside class="panel" class:closed={!panelOpen}>
+    <button class="fold" onclick={() => (panelOpen = !panelOpen)} aria-expanded={panelOpen} title={panelOpen ? "Filter einklappen" : "Filter ausklappen"}>
+      {panelOpen ? "‹ Filter" : "› Filter"}
+    </button>
+    {#if panelOpen}
+      <div class="seg" role="group" aria-label="Filter">
+        {#each MODES as m (m.value)}
+          <button class:on={mode === m.value} aria-pressed={mode === m.value} title={m.hint} onclick={() => setMode(m.value)}>
+            {m.label}
+          </button>
+        {/each}
+      </div>
+      <p class="count" aria-live="polite"><strong>{counts.visible}</strong> von {counts.total} Personen sichtbar</p>
+
+      <label class="switch"><input type="checkbox" bind:checked={showUnconfirmed} onchange={applyOptions} /> Unbestätigte Verbindungen</label>
+      <label class="switch"><input type="checkbox" bind:checked={showUnknown} onchange={applyOptions} /> Unbekannte Personen</label>
+
+      <div class="depth">
+        <label>Vorfahren <input type="number" min="0" max="30" bind:value={up} onchange={() => { up = clampDepth(up); show(); }} /></label>
+        <label>Nachfahren <input type="number" min="0" max="30" bind:value={down} onchange={() => { down = clampDepth(down); show(); }} /></label>
+      </div>
+
+      <h3>Familienlinien</h3>
+      <ul class="legend">
+        {#each legend as l (l.surname)}
+          <li><i style:background={l.color}></i>{l.surname} <small>{l.n}</small></li>
+        {/each}
+        {#if hasUnknownLine}<li><i style:background="#7d86a3"></i>Linie: Name unbekannt</li>{/if}
+      </ul>
+
+      <h3>Linien</h3>
+      <div class="seg" role="group" aria-label="Linienführung">
+        <button class:on={lineMode === "curved"} aria-pressed={lineMode === "curved"} onclick={() => { lineMode = "curved"; applyOptions(); }}>geschwungen</button>
+        <button class:on={lineMode === "orthogonal"} aria-pressed={lineMode === "orthogonal"} onclick={() => { lineMode = "orthogonal"; applyOptions(); }}>rechtwinklig</button>
+      </div>
+      <ul class="legend styles">
+        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" /></svg>belegt</li>
+        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" stroke-dasharray="6 4" /></svg>unbestätigt</li>
+        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" stroke-dasharray="2 4" /></svg>Adoption / Pflege</li>
+      </ul>
+    {/if}
+  </aside>
+
+  <div class="zoom">
     <button onclick={() => view?.fit()} title="Ganze Ansicht einpassen">Einpassen</button>
     <button onclick={() => view?.zoomBy(1.25)} aria-label="Hineinzoomen">+</button>
     <button onclick={() => view?.zoomBy(0.8)} aria-label="Herauszoomen">−</button>
   </div>
+
   {#if error}<p class="error">Fehler: {error}</p>{/if}
-  <canvas bind:this={canvas}></canvas>
   <p class="hint">
     Ziehen = verschieben · Mausrad = zoomen · Klick auf Karte = Fokus wechseln · „+n“ = aufklappen
     <span class="info">{info}{#if drawStats} · Zeichnen {drawStats.ms.toFixed(1)} ms ({drawStats.cards} sichtbar){/if}</span>
@@ -139,18 +232,45 @@
 </section>
 
 <style>
-  .viewer { display: flex; flex-direction: column; min-height: 0; min-width: 0; height: 100%; }
-  .bar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--line); }
-  .bar input[type="number"] { width: 3.5rem; }
-  .grow { flex: 1; }
-  .seg { display: inline-flex; }
-  .seg button { border-radius: 0; margin: 0; }
-  .seg button:first-child { border-radius: 6px 0 0 6px; }
-  .seg button:last-child { border-radius: 0 6px 6px 0; }
+  .viewer { position: relative; min-height: 0; min-width: 0; height: 100%; overflow: hidden; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+
+  .panel {
+    position: absolute; top: 0.75rem; left: 0.75rem; width: 15.5rem; max-height: calc(100% - 3.5rem); overflow: auto;
+    box-sizing: border-box; padding: 0.6rem; display: flex; flex-direction: column; gap: 0.6rem;
+    background: color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 28px #0008;
+  }
+  .panel.closed { width: auto; padding: 0.3rem; }
+  .fold { align-self: flex-start; border-radius: 10px; }
+  .seg { display: flex; }
+  .seg button { flex: 1; border-radius: 0; margin: 0; padding: 0.3rem 0.35rem; font-size: 0.85rem; }
+  .seg button:first-child { border-radius: 8px 0 0 8px; }
+  .seg button:last-child { border-radius: 0 8px 8px 0; }
   .seg button + button { border-left: 0; }
   .seg button.on { background: var(--accent); color: #07110f; border-color: var(--accent); }
-  canvas { flex: 1; min-height: 0; width: 100%; display: block; cursor: grab; }
-  .hint { color: var(--dim); font-size: 0.78rem; margin: 0; padding: 0.3rem 0.75rem; border-top: 1px solid var(--line); }
+  .count { margin: 0; color: var(--dim); font-size: 0.9rem; }
+  .count strong { color: var(--text); }
+  .switch { display: flex; gap: 0.5rem; align-items: center; font-size: 0.9rem; cursor: pointer; }
+  .switch input { accent-color: var(--accent); }
+  .depth { display: flex; gap: 0.5rem; font-size: 0.85rem; color: var(--dim); }
+  .depth label { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
+  .depth input { width: 100%; box-sizing: border-box; }
+  h3 { margin: 0.2rem 0 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+  .legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.88rem; }
+  .legend li { display: flex; align-items: center; gap: 0.5rem; }
+  .legend i { width: 0.8rem; height: 0.8rem; border-radius: 50%; flex: none; }
+  .legend small { color: var(--dim); margin-left: auto; }
+
+  .zoom { position: absolute; right: 0.75rem; bottom: 2.5rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .hint {
+    position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 0.3rem 0.75rem;
+    color: var(--dim); font-size: 0.78rem; background: color-mix(in srgb, var(--bg) 70%, transparent);
+  }
   .info { float: right; }
-  .error { color: var(--bad); margin: 0.3rem 0.75rem; }
+  .error { position: absolute; top: 0.75rem; right: 0.75rem; margin: 0; color: var(--bad); background: var(--panel); padding: 0.3rem 0.6rem; border-radius: 8px; }
+  @media (max-width: 800px) {
+    .panel { width: 12.5rem; }
+    .info { display: none; }
+  }
 </style>

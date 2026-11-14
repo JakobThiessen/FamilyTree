@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { LayoutSession } from "../../src/core";
 import type { Person, TreeData, Union } from "../../src/core";
-import { Camera, GridIndex, buildScene, badgeRect, lineColor, lifeSpan } from "../../src/render";
+import { Camera, GridIndex, buildScene, badgeRect, lineColor, lifeSpan, initials, isUnknownPerson } from "../../src/render";
 
 const readTree = (file: string): TreeData => JSON.parse(readFileSync(file, "utf8")) as TreeData;
 const persons = (ps: Person[]) => new Map(ps.map((p) => [p.id, p]));
@@ -97,6 +97,14 @@ describe("Stil", () => {
     expect(lineColor("Muster")).toBe(lineColor(" muster "));
     expect(lineColor(undefined)).toBe(lineColor(""));
   });
+  it("Initialen und unbekannte Personen", () => {
+    expect(initials({ id: "x", sex: "U", givenNames: "anna", surname: "Muster" })).toBe("AM");
+    expect(initials({ id: "x", sex: "U", surname: "Muster" })).toBe("M");
+    expect(initials({ id: "x", sex: "U" })).toBe("?");
+    expect(isUnknownPerson({ id: "x", sex: "U" })).toBe(true);
+    expect(isUnknownPerson({ id: "x", sex: "U", givenNames: "A", status: "unknown" })).toBe(true);
+    expect(isUnknownPerson({ id: "x", sex: "U", givenNames: "A" })).toBe(false);
+  });
   it("Lebensspanne", () => {
     expect(lifeSpan({ id: "x", sex: "U", birth: { date: { kind: "about", year: 1750 } }, death: { date: { kind: "exact", year: 1800 } } })).toBe("* ~1750 – † 1800");
     expect(lifeSpan({ id: "x", sex: "U" })).toBe("");
@@ -107,7 +115,7 @@ describe("Szene", () => {
   const { ps, us } = tinyTree();
   const session = new LayoutSession({ persons: ps, unions: us });
   const result = session.layout({ focusId: "c", up: 1, down: 1, mode: "direct" });
-  const scene = buildScene(result, persons(ps));
+  const scene = buildScene(result, persons(ps), { lineMode: "orthogonal" });
 
   it("legt zu jeder Karte eine Szenenkarte mit Familienfarbe an", () => {
     expect(scene.cards.length).toBe(result.nodes.length);
@@ -115,6 +123,47 @@ describe("Szene", () => {
     expect(carl.name).toBe("Carl Beispiel");
     expect(carl.color).toBe(lineColor("Beispiel"));
     expect(scene.focusKey).toBe("c");
+  });
+
+  it("Standard sind S-Kurven: eine Kurve je Kind, senkrecht aus dem Anker und senkrecht ins Kind", () => {
+    const curved = buildScene(result, persons(ps));
+    expect(curved.lineMode).toBe("curved");
+    const curves = curved.edges.filter((e) => e.curve);
+    expect(curves.length).toBeGreaterThan(0);
+    for (const e of curves) {
+      const p = e.points as number[];
+      expect(p.length).toBe(8);
+      expect(p[2]).toBe(p[0]); // erster Stützpunkt senkrecht unter dem Anker
+      expect(p[4]).toBe(p[6]); // zweiter senkrecht über dem Kind
+      expect(p[7]).toBeGreaterThan(p[1] as number); // Kind liegt unter dem Anker
+    }
+    // keine rechtwinkligen Sammelschienen im Kurvenmodus
+    expect(curved.edges.some((e) => !e.curve && e.points.length === 6)).toBe(false);
+    // Kartenzahl und Linienzahl pro Kind bleiben gleich wie rechtwinklig
+    expect(curves.length).toBe(scene.edges.filter((e) => e.points.length === 6).length);
+  });
+
+  it("Filter: unbestätigte Verbindungen und unbekannte Personen ausblenden, Fokus bleibt", () => {
+    const full = new LayoutSession({ persons: ps, unions: us }).layout({ focusId: "a", up: 0, down: 2, mode: "family" });
+    const all = buildScene(full, persons(ps));
+    expect(all.edges.some((e) => e.style === "dashed")).toBe(true);
+    const noDashed = buildScene(full, persons(ps), { showUnconfirmed: false });
+    expect(noDashed.edges.some((e) => e.style === "dashed")).toBe(false);
+    expect(noDashed.cards.length).toBe(all.cards.length); // Karten bleiben
+
+    const withUnknown: Person[] = [...ps, { id: "z", sex: "U" }];
+    const u2: Union[] = [...us, { id: "u3", partnerIds: ["a", "z"], kind: "partnership", children: [] }];
+    const res = new LayoutSession({ persons: withUnknown, unions: u2 }).layout({ focusId: "a", up: 0, down: 2, mode: "family" });
+    const shown = buildScene(res, persons(withUnknown));
+    const hidden = buildScene(res, persons(withUnknown), { showUnknown: false });
+    expect(shown.cards.some((c) => c.node.personId === "z")).toBe(true);
+    expect(hidden.cards.some((c) => c.node.personId === "z")).toBe(false);
+    expect(hidden.visiblePersons).toBe(shown.visiblePersons - 1);
+    expect(hidden.totalPersons).toBe(shown.totalPersons);
+    expect(hidden.cards.some((c) => c.node.personId === "a")).toBe(true);
+    // Fokus wird nie ausgeblendet, auch wenn er unbekannt wäre
+    const focusUnknown = new LayoutSession({ persons: withUnknown, unions: u2 }).layout({ focusId: "z", up: 1, down: 1, mode: "family" });
+    expect(buildScene(focusUnknown, persons(withUnknown), { showUnknown: false }).cards.some((c) => c.node.personId === "z")).toBe(true);
   });
 
   it("zeichnet Linien rechtwinklig mit Stamm und Sammelschiene", () => {
@@ -161,7 +210,7 @@ describe("Spuren der Sammelschienen", () => {
       { id: "u3", partnerIds: ["d", "f"], kind: "marriage", children: [{ personId: "i", kind: "biological" }, { personId: "j", kind: "biological" }] },
     ];
     const res = new LayoutSession({ persons: ps, unions: us }).layout({ focusId: "a", up: 0, down: 3, mode: "family" });
-    const scene = buildScene(res, persons(ps));
+    const scene = buildScene(res, persons(ps), { lineMode: "orthogonal" });
     // Je Stamm (x, Schienenhöhe) die Spanne seiner Kinderlinien; gleiche Höhe heißt gleiche Spur
     const trunks = scene.edges.filter((e) => e.points.length === 4 && e.points[0] === e.points[2]);
     const spans = trunks.map((t) => {

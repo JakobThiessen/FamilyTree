@@ -13,12 +13,20 @@ import type { Person, PersonId } from "../core/types";
 import { Camera } from "./camera";
 import type { Rect } from "./camera";
 import { BADGE, badgeRect, buildScene } from "./scene";
-import type { BadgeDirection, Scene, SceneCard, SceneEdge } from "./scene";
+import type { BadgeDirection, Scene, SceneCard, SceneEdge, SceneOptions } from "./scene";
 import { COLORS } from "./style";
 
 /** Ab diesem Zoom zeichnen wir Text, ab diesem Rahmen und Streifen; darunter nur Farbflächen. */
 export const LOD_TEXT = 0.3;
 export const LOD_DETAIL = 0.06;
+/** Ab diesem Zoom steht die Rolle zur Fokusperson auf der Karte (nur wenige Karten sichtbar, Text ist teuer). */
+export const LOD_ROLE = 0.55;
+/** Unter diesem Zoom werden S-Kurven als Gerade gezeichnet (D28). */
+export const LOD_CURVE = 0.12;
+/** Bei mehr Karten fährt die Kamera nicht weich, sondern springt (D28). */
+const ANIMATE_MAX_CARDS = 4000;
+const ANIMATE_MS = 380;
+const CARD_RADIUS = 14;
 
 export interface DrawStats {
   /** Zeichenzeit in Millisekunden */
@@ -33,6 +41,8 @@ export interface TreeViewEvents {
   /** Klick auf „+n“ */
   onExpand?: (card: SceneCard, dir: BadgeDirection) => void;
   onDraw?: (stats: DrawStats) => void;
+  /** Rolle der Person zur Fokusperson („Vater“, „Cousine 1. Grades“ …); wird nur für sichtbare Karten bei starkem Zoom gefragt */
+  roleOf?: (personId: PersonId) => string | undefined;
 }
 
 interface Hit {
@@ -60,6 +70,13 @@ export class TreeView {
   private dragMoved = 0;
   private pinchDist = 0;
   private disposed = false;
+  private options: SceneOptions = {};
+  /** Breite (CSS-Pixel) am linken Rand, die ein schwebendes Panel verdeckt: Einpassen und Zentrieren sparen sie aus */
+  private insetLeft = 0;
+  private lastResult: LayoutResult | null = null;
+  private roleCache = new Map<PersonId, string>();
+  private background: { h: number; g: CanvasGradient } | null = null;
+  private anim: { t0: number; from: [number, number, number]; to: [number, number, number] } | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement, private readonly events: TreeViewEvents = {}) {
     const ctx = canvas.getContext("2d", { alpha: false });
@@ -88,29 +105,79 @@ export class TreeView {
    * so dass beim Aufklappen die vorhandenen Karten an ihrem Platz bleiben.
    */
   setResult(result: LayoutResult, resetView: boolean): void {
-    this.scene = buildScene(result, this.persons);
+    const hadScene = this.scene !== null && this.scene.cards.length > 0;
+    const from: [number, number, number] = [this.camera.scale, this.camera.tx, this.camera.ty];
+    this.lastResult = result;
+    this.scene = buildScene(result, this.persons, this.options);
     this.hover = null;
-    if (resetView) this.showFocus();
+    this.roleCache.clear();
+    if (resetView) this.showFocus(hadScene && this.scene.cards.length <= ANIMATE_MAX_CARDS ? from : undefined);
     this.invalidate();
   }
 
-  /** Richtet die Kamera auf die ganze Ansicht aus; ist sie dafür zu klein, auf die Fokuskarte. */
-  showFocus(): void {
+  /** Filter und Linienführung ändern: Szene aus dem letzten Layout neu bauen, Kamera bleibt. */
+  setOptions(options: SceneOptions): void {
+    this.options = { ...options };
+    if (this.lastResult) {
+      this.scene = buildScene(this.lastResult, this.persons, this.options);
+      this.hover = null;
+    }
+    this.invalidate();
+  }
+
+  setInset(left: number): void {
+    this.insetLeft = Math.max(0, left);
+  }
+
+  /** Zahl der Personen nach/vor dem Filter (für „x von y sichtbar“ in der Oberfläche). */
+  get visibleCounts(): { visible: number; total: number } {
+    return { visible: this.scene?.visiblePersons ?? 0, total: this.scene?.totalPersons ?? 0 };
+  }
+
+  /**
+   * Richtet die Kamera auf die ganze Ansicht aus; ist sie dafür zu klein, auf die Fokuskarte.
+   * Mit `animateFrom` (Kamera vor dem Wechsel) gleitet sie weich dorthin statt zu springen.
+   */
+  showFocus(animateFrom?: [number, number, number]): void {
     const scene = this.scene;
     if (!scene || scene.cards.length === 0) return;
     this.fit();
     if (this.camera.scale < 0.5) {
       const focus = scene.cards.find((c) => c.node.key === scene.focusKey) ?? scene.cards[0]!;
       this.camera.scale = 0.8;
-      this.camera.centerOn(focus.node.x, focus.node.y, this.width, this.height);
+      this.camera.centerOn(focus.node.x, focus.node.y, this.width - this.insetLeft, this.height);
+      this.camera.tx += this.insetLeft;
+    }
+    this.anim = null;
+    if (animateFrom) {
+      const to: [number, number, number] = [this.camera.scale, this.camera.tx, this.camera.ty];
+      this.camera.scale = animateFrom[0];
+      this.camera.tx = animateFrom[1];
+      this.camera.ty = animateFrom[2];
+      this.anim = { t0: performance.now(), from: animateFrom, to };
     }
     this.invalidate();
   }
 
+  /** Ein Schritt der Kamerafahrt (Ease-out, Zoom logarithmisch); true, solange sie läuft. */
+  private stepAnimation(): boolean {
+    const a = this.anim;
+    if (!a) return false;
+    const t = Math.min(1, (performance.now() - a.t0) / ANIMATE_MS);
+    const e = 1 - Math.pow(1 - t, 3);
+    this.camera.scale = Math.exp(Math.log(a.from[0]) + (Math.log(a.to[0]) - Math.log(a.from[0])) * e);
+    this.camera.tx = a.from[1] + (a.to[1] - a.from[1]) * e;
+    this.camera.ty = a.from[2] + (a.to[2] - a.from[2]) * e;
+    if (t >= 1) this.anim = null;
+    return this.anim !== null;
+  }
+
   fit(): void {
     if (!this.scene) return;
+    this.anim = null;
     const b = this.scene.bounds;
-    this.camera.fit({ minX: b.minX, maxX: b.maxX, minY: b.minY, maxY: b.maxY }, this.width, this.height);
+    this.camera.fit({ minX: b.minX, maxX: b.maxX, minY: b.minY, maxY: b.maxY }, this.width - this.insetLeft, this.height);
+    this.camera.tx += this.insetLeft;
     this.invalidate();
   }
 
@@ -140,6 +207,7 @@ export class TreeView {
     this.frame = requestAnimationFrame(() => {
       this.dirty = false;
       this.draw();
+      if (this.anim) this.invalidate(); // Kamerafahrt läuft weiter
     });
   }
 
@@ -157,8 +225,16 @@ export class TreeView {
   draw(): DrawStats {
     const t0 = performance.now();
     const { ctx, camera } = this;
+    this.stepAnimation();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = COLORS.background;
+    // Sanfter Verlauf von oben nach unten; der Verlauf wird je Höhe nur einmal angelegt.
+    if (!this.background || this.background.h !== this.canvas.height) {
+      const g = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+      g.addColorStop(0, COLORS.backgroundTop);
+      g.addColorStop(1, COLORS.backgroundBottom);
+      this.background = { h: this.canvas.height, g };
+    }
+    ctx.fillStyle = this.background.g;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     let cards = 0;
@@ -236,9 +312,16 @@ export class TreeView {
       ctx.setLineDash(sample.style === "dashed" ? [8, 6] : sample.style === "dotted" ? [2, 5] : []);
       ctx.beginPath();
       for (const id of list) {
-        const p = (scene.edges[id] as SceneEdge).points;
+        const e = scene.edges[id] as SceneEdge;
+        const p = e.points;
         ctx.moveTo(p[0] as number, p[1] as number);
-        for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i] as number, p[i + 1] as number);
+        if (e.curve) {
+          // S-Kurve; weit herausgezoomt genügt die Gerade (billiger, D28)
+          if (k >= LOD_CURVE) ctx.bezierCurveTo(p[2] as number, p[3] as number, p[4] as number, p[5] as number, p[6] as number, p[7] as number);
+          else ctx.lineTo(p[6] as number, p[7] as number);
+        } else {
+          for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i] as number, p[i + 1] as number);
+        }
       }
       ctx.stroke();
       void key;
@@ -271,6 +354,7 @@ export class TreeView {
   private drawCards(scene: Scene, ids: number[], k: number): void {
     const ctx = this.ctx;
     const text = k >= LOD_TEXT;
+    const roles = k >= LOD_ROLE && this.events.roleOf !== undefined;
     ctx.textBaseline = "alphabetic";
     for (const id of ids) {
       const card = scene.cards[id] as SceneCard;
@@ -283,29 +367,58 @@ export class TreeView {
       ctx.globalAlpha = n.ghost ? 0.6 : 1;
 
       ctx.beginPath();
-      if (text && ctx.roundRect) ctx.roundRect(r.minX, r.minY, w, h, 8);
+      if (ctx.roundRect) ctx.roundRect(r.minX, r.minY, w, h, text ? CARD_RADIUS : 6);
       else ctx.rect(r.minX, r.minY, w, h);
+      // Leuchten nur bei Fokus und Hover (Schatten ist teuer, D28)
+      if (isFocus || isHover) {
+        ctx.shadowColor = isFocus ? COLORS.focusGlow : card.color;
+        ctx.shadowBlur = isFocus ? 22 : 14;
+      }
       ctx.fillStyle = COLORS.card;
       ctx.fill();
-      // Streifen links in der Farbe der Familienlinie
-      ctx.fillStyle = card.color;
-      ctx.fillRect(r.minX, r.minY, 6, h);
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = "transparent";
 
-      ctx.lineWidth = isFocus ? 3 : isHover ? 2 : 1.5;
-      ctx.strokeStyle = isFocus ? COLORS.focus : isHover ? card.color : card.color + "99";
+      ctx.lineWidth = isFocus ? 2.5 : isHover ? 2 : 1.25;
+      ctx.strokeStyle = isFocus ? COLORS.focus : isHover ? card.color : card.color + "88";
       ctx.setLineDash(card.unconfirmed || n.ghost ? [6, 4] : []);
       ctx.stroke();
       ctx.setLineDash([]);
 
+      // Avatar-Kreis mit Initialen in der Farbe der Familienlinie
+      const ar = Math.min(17, h / 2 - 12);
+      const ax = r.minX + 14 + ar;
+      ctx.beginPath();
+      ctx.arc(ax, n.y, ar, 0, Math.PI * 2);
+      ctx.fillStyle = card.color + "30";
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = card.color;
+      ctx.stroke();
+
       if (text) {
-        const maxChars = Math.max(6, Math.floor((w - 24) / 7));
+        ctx.fillStyle = card.color;
+        ctx.font = "700 13px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(card.initials, ax, n.y + 5);
+        ctx.textAlign = "start";
+
+        const tx = ax + ar + 8;
+        const maxChars = Math.max(6, Math.floor((r.maxX - 8 - tx) / 6.2));
         const clip = (s: string): string => (s.length > maxChars ? s.slice(0, maxChars - 1) + "…" : s);
+        const role = roles && !isFocus && !n.ghost ? this.roleFor(n.personId) : undefined;
+        const nameY = role ? n.y - 8 : n.y - 3;
         ctx.fillStyle = COLORS.text;
-        ctx.font = "600 14px system-ui, sans-serif";
-        ctx.fillText(clip((n.ghost ? "↺ " : "") + card.name), r.minX + 16, n.y - 4);
+        ctx.font = "600 13px system-ui, sans-serif";
+        ctx.fillText(clip((n.ghost ? "↺ " : "") + card.name), tx, nameY);
         ctx.fillStyle = COLORS.textDim;
         ctx.font = "12px system-ui, sans-serif";
-        ctx.fillText(clip(card.dates), r.minX + 16, n.y + 16);
+        ctx.fillText(clip(card.dates), tx, nameY + 16);
+        if (role) {
+          ctx.fillStyle = card.color;
+          ctx.font = "600 11px system-ui, sans-serif";
+          ctx.fillText(clip(role), tx, nameY + 31);
+        }
       }
       ctx.globalAlpha = 1;
 
@@ -315,6 +428,14 @@ export class TreeView {
         if (n.hiddenChildren > 0) this.drawBadge(card, "down", n.hiddenChildren, text);
       }
     }
+  }
+
+  /** Rolle zur Fokusperson, je Fokus zwischengespeichert (die Berechnung ist nicht ganz billig). */
+  private roleFor(personId: PersonId): string | undefined {
+    if (this.roleCache.has(personId)) return this.roleCache.get(personId) || undefined;
+    const role = this.events.roleOf?.(personId) ?? "";
+    this.roleCache.set(personId, role);
+    return role || undefined;
   }
 
   private drawBadge(card: SceneCard, dir: BadgeDirection, count: number, text: boolean): void {
