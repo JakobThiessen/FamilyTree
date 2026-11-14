@@ -45,12 +45,12 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 - [x] Geisterknoten für doppelte Ahnen
 - [x] Layout im Worker, inkrementell pro Chunk
 
-## M6 – Darstellung ⬜
-- [ ] Canvas-Zeichenfläche, Zoom und Verschieben, Viewport-Culling
-- [ ] Tiefe pro Richtung einstellbar, „+n“-Knoten zum Aufklappen
-- [ ] Personenkarten, Linienstile (belegt durchgezogen, unbestätigt gestrichelt)
-- [ ] Farben pro Familienlinie
-- [ ] Performance-Test mit 50.000 Personen (`example/performance`)
+## M6 – Darstellung ✅
+- [x] Canvas-Zeichenfläche, Zoom und Verschieben, Viewport-Culling
+- [x] Tiefe pro Richtung einstellbar, „+n“-Knoten zum Aufklappen
+- [x] Personenkarten, Linienstile (belegt durchgezogen, unbestätigt gestrichelt)
+- [x] Farben pro Familienlinie
+- [x] Performance-Test mit 50.000 Personen (`example/performance`)
 
 ## M7 – Oberfläche ⬜
 - [ ] Svelte-Layout, Filter („Direkte Linie / Familie / Alle“)
@@ -73,4 +73,4 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 
 ## Offene Fragen
 - Soll später ein Mehrbenutzer-Betrieb oder Sync möglich sein? (Aktuell: nein, lokal)
-- PixiJS (WebGL) oder reines Canvas 2D? Entscheidung bei M6 per Messung.
+- ~~PixiJS oder Canvas 2D?~~ Entschieden in M6: Canvas 2D (D21).

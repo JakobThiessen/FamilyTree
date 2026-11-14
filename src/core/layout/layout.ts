@@ -36,28 +36,41 @@ function extent(o: Occ, gap: number): number {
   return o.ext;
 }
 
-function place(o: Occ, x: number, gap: number): void {
-  o.x = x;
-  let cursor = x - o.width / 2 - gap;
-  for (let i = o.sibL.length - 1; i >= 0; i--) {
-    const s = o.sibL[i] as Occ;
-    const e = extent(s, gap);
-    place(s, cursor - e / 2, gap);
-    cursor -= e + gap;
-  }
-  cursor = x + o.width / 2 + gap;
-  for (const s of o.sibR) {
-    const e = extent(s, gap);
-    place(s, cursor + e / 2, gap);
-    cursor += e + gap;
-  }
-  for (const kids of [o.upKids, o.downKids]) {
-    const total = kids.reduce((acc, k, i) => acc + extent(k, gap) + (i > 0 ? gap : 0), 0);
-    let start = x - total / 2;
-    for (const k of kids) {
-      const e = extent(k, gap);
-      place(k, start + e / 2, gap);
-      start += e + gap;
+/**
+ * Setzt die Breiten aller Teilbäume im Voraus, von den zuletzt angelegten Bändern an: Kinder und Geschwister
+ * entstehen immer nach ihrem Band, `extent` muss dadurch nie tief rekursiv absteigen (DECISIONS D22).
+ */
+function computeExtents(occs: Occ[], gap: number): void {
+  for (let i = occs.length - 1; i >= 0; i--) extent(occs[i] as Occ, gap);
+}
+
+/** Verteilt die Positionen von der Wurzel abwärts mit eigenem Stapel statt Rekursion (große Ansichten). */
+function place(root: Occ, rootX: number, gap: number): void {
+  const stack: [Occ, number][] = [[root, rootX]];
+  while (stack.length > 0) {
+    const [o, x] = stack.pop() as [Occ, number];
+    o.x = x;
+    let cursor = x - o.width / 2 - gap;
+    for (let i = o.sibL.length - 1; i >= 0; i--) {
+      const s = o.sibL[i] as Occ;
+      const e = extent(s, gap);
+      stack.push([s, cursor - e / 2]);
+      cursor -= e + gap;
+    }
+    cursor = x + o.width / 2 + gap;
+    for (const s of o.sibR) {
+      const e = extent(s, gap);
+      stack.push([s, cursor + e / 2]);
+      cursor += e + gap;
+    }
+    for (const kids of [o.upKids, o.downKids]) {
+      const total = kids.reduce((acc, k, i) => acc + extent(k, gap) + (i > 0 ? gap : 0), 0);
+      let start = x - total / 2;
+      for (const k of kids) {
+        const e = extent(k, gap);
+        stack.push([k, start + e / 2]);
+        start += e + gap;
+      }
     }
   }
 }
@@ -161,6 +174,7 @@ export function layoutView(
   });
 
   // 1. Teilbaumbreiten und Grundpositionen
+  computeExtents(built.occs, gap);
   let rootStart = 0;
   built.roots.forEach((root, i) => {
     const e = extent(root, gap);

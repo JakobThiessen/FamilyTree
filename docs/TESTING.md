@@ -15,7 +15,8 @@
 | Datum | „um 1750“, „vor 1800“, „zwischen 1700 und 1710“ |
 | GEDCOM | verschiedene Zeichensätze, fehlerhafte Zeilen, leere Namen |
 | Suche | bidirektionale Suche findet **alle** gemeinsamen Vorfahren |
-| Performance | `example/performance` (generiert): 50.000 Personen, Ziel Layout eines Chunks < 100 ms |
+| Performance | `example/performance` (generiert): 50.000 Personen, Ziel Layout eines Chunks < 100 ms; Szenenaufbau und Culling (`tests/render`) |
+| Darstellung | Kamera, Raster, Szene (Stile, Spuren, „+n“) in `tests/render`; das Zeichnen selbst nur von Hand |
 
 ## Manuell
 

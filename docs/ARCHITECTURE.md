@@ -17,7 +17,7 @@
       ┌───────┴────────┐
       ▼                ▼
   src/render        src/ui
-  (Canvas)          (Svelte)
+  (Canvas 2D)       (Svelte)
 ```
 
 ## Prinzipien
@@ -45,6 +45,11 @@
 - Geisterknoten: Jede Person steht einmal echt. Wird sie über einen zweiten Weg erreicht (Ahnenschwund, Heirat unter Verwandten), entsteht dort eine Geisterkarte, die auf die echte verweist.
 - Umsetzung in `src/core/layout` (Auswahl, Schichten, Bänder/Geister, Positionen); Details in DECISIONS D17–D20.
 
+## Darstellung (`src/render`, M6)
+
+- `LayoutResult` → `buildScene` (`scene.ts`, reines TS: Karten, rechtwinklige Linien, Raster-Indizes) → `TreeView` (`treeView.ts`, Canvas 2D, Zoom/Verschieben, Culling, Detailstufen, Klicks als Ereignisse). `Camera` und `GridIndex` sind reines TS und getestet.
+- `src/ui/TreeViewer.svelte` ist nur die dünne Hülle: Modus, Tiefe, `LayoutClient`, Ereignisse von `TreeView` in neue Layout-Anfragen übersetzen. Details in DECISIONS D21 und D23.
+
 ## Provider-Schnittstelle (Entwurf)
 
 ```ts
@@ -63,7 +68,7 @@ Treffer werden als `assumed` importiert und nie automatisch mit vorhandenen Pers
 |---|---|
 | vite, typescript | Build, Typen |
 | svelte | Oberfläche |
-| pixi.js (optional, M6) | WebGL-Rendering |
+| ~~pixi.js~~ | nicht nötig: Canvas 2D reicht (D21) |
 | idb | IndexedDB-Komfort (in M3 eingebaut) |
 | fake-indexeddb (nur Tests) | IndexedDB in Node für `tests/storage` |
 | vitest | Tests |

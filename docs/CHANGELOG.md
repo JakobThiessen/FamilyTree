@@ -4,6 +4,22 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M6)
+- Zeichenschicht `src/render` (Canvas 2D, ohne Framework): `Camera` (Zoom um den Zeiger, Verschieben, Einpassen), `GridIndex` (Raster fürs Viewport-Culling), `buildScene` (Karten mit Familienfarbe, rechtwinklige Linien mit Sammelschienen und Spuren), `TreeView` (Zeichnen, Mausrad, Ziehen, Zwei-Finger-Geste, Hover, Klick, Detailstufen)
+- Linienstile: belegt durchgezogen, vermutet (`assumed`/`unknown`) gestrichelt, Adoption/Pflege gepunktet; Geisterkarten blasser mit gestricheltem Rahmen und „↺“
+- Farbe pro Familienlinie (Nachname → Palette), „+n“-Knöpfe (▲ Eltern, ▼ Kinder) klappen auf, ohne dass sich vorhandene Karten bewegen
+- `src/ui/TreeViewer.svelte`: Ansicht (Direkte Linie / Familie / Alle), Tiefe für Vorfahren und Nachfahren, Einpassen, Zoom-Knöpfe, zufällige Person, Anzeige von Layout- und Zeichenzeit; in `App.svelte` unter den geladenen Daten eingebunden
+- Tests in `tests/render/render.test.ts` (Kamera, Raster, Szene, Linienstile, Spuren, Beispiele, 50.000 Personen)
+- Entscheidungen D21 (Canvas 2D statt PixiJS, mit Messung), D22, D23
+- Im Browser geprüft (Vite-Entwicklungsserver): `example/json/*` und `tree-50000.json`: Zoom, Verschieben, Aufklappen, Fokus wechseln
+
+### Geändert (M6)
+- Layout-Kern ohne Rekursion (`build.ts`: Generator mit eigenem Stapel, `layout.ts`: `computeExtents`, `place` mit Stapel), weil `all` bei großen Ansichten den Aufrufstapel sprengte (D22). Ergebnis und Reihenfolge unverändert.
+
+### Bekannte Grenzen (M6)
+- Modus `all` bei dichten Verwandtschaften: Layoutbreite wächst exponentiell (D22), die Darstellung bleibt stabil, ist aber nicht sinnvoll lesbar. `direct` und `family` sind unauffällig.
+- Der Layout-Zeittest „vollständiger Ahnenbaum … unter 100 ms“ (M5) liegt auf dieser Maschine nahe an der Grenze und schlägt bei paralleler Last gelegentlich fehl (auch ohne M6-Änderungen).
+
 ### Hinzugefügt (M5)
 - Layout-Kern `src/core/layout` (reines TypeScript): `layoutView(graph, request, options?, previous?)` und `LayoutSession` liefern `LayoutResult` mit Karten (`nodes`), Partnerbändern (`bands`), Union-Ankern (`unions`), Rahmen und Statistik
 - Sanduhr mit Generationenschichten (Fokus 0, Eltern −1, Kinder +1), bei Schleifen tiefste benötigte Schicht (längster Weg); Modi `direct`, `family`, `all`

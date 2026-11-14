@@ -119,7 +119,10 @@ export function buildOccurrences(input: BuildInput): BuiltView {
     return out;
   };
 
-  const arriveUp = (o: Occ, m: PersonId, link: ParentLink, partners: PersonId[]): void => {
+  // Die Tiefensuche läuft ohne echte Rekursion (Generatoren + eigener Stapel, siehe `run` unten):
+  // bei großen Ansichten (Zehntausende Karten) würde der Aufrufstapel sonst überlaufen (DECISIONS D22).
+  // `yield occ` bedeutet „besuche occ jetzt, danach mach hier weiter“ – die Reihenfolge bleibt wie bei Rekursion.
+  function* arriveUp(o: Occ, m: PersonId, link: ParentLink, partners: PersonId[]): Generator<Occ, void, void> {
     const u = link.union;
     linked.add(`${u.id}|${m}`);
     const pg = groupOf.get(partners[0] as PersonId) as string;
@@ -131,7 +134,7 @@ export function buildOccurrences(input: BuildInput): BuiltView {
       unionOcc.set(u.id, uo);
       uo.children.push({ occ: o, personId: m, link: link.link });
       o.upKids.push(pb);
-      visit(pb);
+      yield pb;
     } else {
       const arrival = `up:${u.id}:${m}`;
       const gb = newGhost(arrival, partners, layer, "up");
@@ -139,7 +142,7 @@ export function buildOccurrences(input: BuildInput): BuiltView {
       uo.children.push({ occ: o, personId: m, link: link.link });
       o.upKids.push(gb);
     }
-  };
+  }
 
   const arriveDown = (
     o: Occ,
@@ -166,7 +169,7 @@ export function buildOccurrences(input: BuildInput): BuiltView {
     return real ? child : undefined;
   };
 
-  function visit(o: Occ): void {
+  function* visit(o: Occ): Generator<Occ, void, void> {
     // 1. Aufstieg: Eltern der Mitglieder (nicht die Union, über die das Mitglied schon hängt)
     for (const m of o.persons) {
       const links = [...g.parentLinks(m)].sort((a, b) => kindRank(a.link.kind) - kindRank(b.link.kind));
@@ -174,7 +177,7 @@ export function buildOccurrences(input: BuildInput): BuiltView {
         if (linked.has(`${link.union.id}|${m}`)) continue;
         const partners = link.union.partnerIds.filter(inS);
         if (partners.length === 0) continue;
-        arriveUp(o, m, link, partners);
+        yield* arriveUp(o, m, link, partners);
       }
     }
 
@@ -209,20 +212,30 @@ export function buildOccurrences(input: BuildInput): BuiltView {
         if (made) pending.push(made);
       }
     });
-    for (const child of pending) visit(child);
+    for (const child of pending) yield child;
   }
+
+  /** Führt `visit` mit eigenem Stapel aus (ersetzt die Rekursion). */
+  const run = (start: Occ): void => {
+    const stack: Generator<Occ, void, void>[] = [visit(start)];
+    while (stack.length > 0) {
+      const step = (stack[stack.length - 1] as Generator<Occ, void, void>).next();
+      if (step.done) stack.pop();
+      else stack.push(visit(step.value));
+    }
+  };
 
   const focusGroup = groupOf.get(sel.focusId) as string;
   const focus = newReal(focusGroup, "down");
   const roots: Occ[] = [focus];
-  visit(focus);
+  run(focus);
 
   // Gruppen, die nicht erreicht wurden (kaputte Daten, Schichtkonflikt): als eigene Wurzeln anhängen.
   for (const group of members.keys()) {
     if (realBand.has(group)) continue;
     const o = newReal(group, "down");
     roots.push(o);
-    visit(o);
+    run(o);
   }
 
   return { occs, unions, roots, focus };

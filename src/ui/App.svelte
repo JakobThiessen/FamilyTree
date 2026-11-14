@@ -9,6 +9,7 @@
   import { TreeStore } from "../storage";
   import type { TreeMeta } from "../storage";
   import { onMount } from "svelte";
+  import TreeViewer from "./TreeViewer.svelte";
 
   // Speicher (IndexedDB). Wird beim Start geöffnet; fehlt IndexedDB, läuft die App ohne Speicherung.
   let store = $state.raw<TreeStore | null>(null);
@@ -119,7 +120,7 @@
 
 <main>
   <h1>FamilyTree</h1>
-  <p>Meilenstein M3: GEDCOM- oder JSON-Datei laden, speichern (IndexedDB) und exportieren.</p>
+  <p>GEDCOM- oder JSON-Datei laden, anzeigen, speichern (IndexedDB) und exportieren.</p>
 
   <label
     class="drop"
@@ -167,6 +168,9 @@
         Als JSON exportieren
       </button>
 
+      <!-- {#key}: bei anderen Daten wird die Ansicht komplett neu aufgebaut -->
+      {#key data}<TreeViewer {data} />{/key}
+
       {#if warnings.length}
         <h3>Hinweise beim Import ({warnings.length})</h3>
         <ul>
@@ -182,7 +186,7 @@
 </main>
 
 <style>
-  main { padding: 2rem; max-width: 50rem; }
+  main { padding: 1.5rem; max-width: 90rem; margin: 0 auto; }
   .drop {
     display: block; padding: 2rem; border: 2px dashed #888; border-radius: 8px;
     text-align: center; cursor: pointer;
