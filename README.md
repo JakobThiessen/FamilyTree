@@ -8,12 +8,13 @@ Browserbasierte Stammbaum-Software in TypeScript. Du wählst eine beliebige Pers
 - **Realistisches Datenmodell:** mehrere Ehen nacheinander, Halbgeschwister, Adoptiv- und Pflegekinder, Heirat unter Verwandten (Ahnenschwund, doppelte Ahnen werden verwiesen statt kopiert)
 - **Unsichere Daten sind normal:** jede Aussage trägt Status (belegt / vermutet / unbekannt), unscharfe Daten („um 1750“) und Quellen
 - **Ahnen-Reiter:** Ahnentafel mit Sosa-Nummern je Generation, Ahnenschwund und Implex, Inzuchtkoeffizient
+- **Zeitleiste und Karte:** Lebensbalken mit unscharfen Daten; Orte und Lebenswege auf einer mitgelieferten Offline-Weltkarte, fehlende Koordinaten auf Knopfdruck bei Wikidata
 - **Verwandtschaft:** „Was ist A für B?“, gemeinsame Vorfahren, Verwandtschaftsgrade
 - **Import und Export:** GEDCOM (z. B. MyHeritage-Export) und JSON; Import im Web Worker
 - **Online-Quellen:** Wikidata und WikiTree (offene APIs), FamilySearch als Gerüst; Treffer werden nur als „vermutet“ übernommen, Dubletten nur vorgeschlagen
 - **Suche, Details, Speicher:** Namenssuche, Personendetails mit Quellen, Speichern mehrerer Bäume in IndexedDB
 
-Stand und Fahrplan: [docs/PLAN.md](docs/PLAN.md). Geplant sind u. a. Zeitleiste, Karte, PDF/SVG-Export und Zweisprachigkeit.
+Stand und Fahrplan: [docs/PLAN.md](docs/PLAN.md). Geplant sind u. a. PDF/SVG-Export, Barrierefreiheit, Zweisprachigkeit und Backup.
 
 ## Schnellstart
 

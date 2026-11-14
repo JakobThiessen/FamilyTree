@@ -4,6 +4,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M9c)
+- `src/core/places.ts` (D31): `collectPlaces`, `lifePaths`, `placeKey` (Orte zusammenfassen, Lebenswege je Person)
+- `src/providers/placeLookup.ts`: `lookupPlace` / `lookupPlaces` (Koordinaten per Wikidata, nur Ortsnamen, nur auf Knopfdruck)
+- Reiter „Karte“ (`MapView.svelte`, `worldMap.ts`): mitgelieferte vereinfachte Offline-Weltkarte, Modi Orte und Lebenswege, Zoom/Verschieben, Orteliste mit Ereignissen, vermutete Lage (Wikidata) als hohle Marke, Zwischenspeicher im Browser
+- Beispiel `example/json/migration.json` (Auswanderung mit Orten und Koordinaten); Tests `tests/core/places.test.ts`, `tests/providers/placeLookup.test.ts`
+- Im Browser geprüft: `example/json/*`, `example/gedcom/*`, `tree-50000.json` (ohne Orte), echte Abfrage bei Wikidata
+
 ### Hinzugefügt (M9b)
 - `src/core/timeline.ts` (D30): `buildTimeline`, `timelinePersonIds`, `dateRange` (Lebensbalken mit unscharfen Rändern, geschätzte Daten markiert, Marker für Ehen und Kindergeburten, Kürzen auf 600 Zeilen)
 - Reiter „Zeitleiste“ (`TimelineView.svelte`): Balken auf Zeitachse mit Gitter, Auswahl (Fokus-Verwandtschaft oder alle), Tiefe, Zoom, Legende, Klick auf Namen wechselt den Fokus

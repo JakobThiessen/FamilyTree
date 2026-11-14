@@ -1,0 +1,304 @@
+{
+ "version": 1,
+ "sources": [],
+ "persons": [
+  {
+   "id": "p_1",
+   "givenNames": "Heinrich",
+   "surname": "Wanderer",
+   "sex": "M",
+   "birth": {
+    "date": {
+     "kind": "exact",
+     "year": 1815
+    },
+    "place": {
+     "name": "Musterdorf",
+     "lat": 48.2,
+     "lon": 11.5
+    }
+   },
+   "death": {
+    "date": {
+     "kind": "exact",
+     "year": 1880
+    },
+    "place": {
+     "name": "Musterdorf"
+    }
+   }
+  },
+  {
+   "id": "p_2",
+   "givenNames": "Luise",
+   "surname": "Heimat",
+   "sex": "F",
+   "birth": {
+    "date": {
+     "kind": "exact",
+     "year": 1818
+    },
+    "place": {
+     "name": "Musterdorf"
+    }
+   },
+   "death": {
+    "date": {
+     "kind": "exact",
+     "year": 1890
+    },
+    "place": {
+     "name": "Musterdorf"
+    }
+   }
+  },
+  {
+   "id": "p_3",
+   "givenNames": "Friedrich",
+   "surname": "Wanderer",
+   "sex": "M",
+   "birth": {
+    "date": {
+     "kind": "exact",
+     "year": 1842
+    },
+    "place": {
+     "name": "Musterdorf",
+     "lat": 48.2,
+     "lon": 11.5
+    }
+   },
+   "death": {
+    "date": {
+     "kind": "exact",
+     "year": 1915
+    },
+    "place": {
+     "name": "Neustadt-Beispiel",
+     "lat": 40.7,
+     "lon": -74.0
+    }
+   }
+  },
+  {
+   "id": "p_4",
+   "givenNames": "Emma",
+   "surname": "Ostwind",
+   "sex": "F",
+   "birth": {
+    "date": {
+     "kind": "exact",
+     "year": 1845
+    },
+    "place": {
+     "name": "Probenstadt",
+     "lat": 52.5,
+     "lon": 13.4
+    }
+   },
+   "death": {
+    "date": {
+     "kind": "exact",
+     "year": 1920
+    },
+    "place": {
+     "name": "Neustadt-Beispiel",
+     "lat": 40.7,
+     "lon": -74.0
+    }
+   }
+  },
+  {
+   "id": "p_5",
+   "givenNames": "Karl",
+   "surname": "Wanderer",
+   "sex": "M",
+   "birth": {
+    "date": {
+     "kind": "exact",
+     "year": 1871
+    },
+    "place": {
+     "name": "Beispielhafen",
+     "lat": 53.55,
+     "lon": 8.58
+    }
+   },
+   "death": {
+    "date": {
+     "kind": "exact",
+     "year": 1940
+    },
+    "place": {
+     "name": "Westfeld",
+     "lat": 41.9,
+     "lon": -87.6
+    }
+   }
+  },
+  {
+   "id": "p_6",
+   "givenNames": "Berta",
+   "surname": "Wanderer",
+   "sex": "F",
+   "birth": {
+    "date": {
+     "kind": "exact",
+     "year": 1874
+    },
+    "place": {
+     "name": "Neustadt-Beispiel",
+     "lat": 40.7,
+     "lon": -74.0
+    }
+   },
+   "death": {
+    "date": {
+     "kind": "exact",
+     "year": 1950
+    },
+    "place": {
+     "name": "Ort ohne Koordinaten"
+    }
+   }
+  },
+  {
+   "id": "p_7",
+   "givenNames": "Otto",
+   "surname": "Wanderer",
+   "sex": "M",
+   "birth": {
+    "date": {
+     "kind": "exact",
+     "year": 1905
+    },
+    "place": {
+     "name": "Westfeld",
+     "lat": 41.9,
+     "lon": -87.6
+    }
+   },
+   "death": {
+    "date": {
+     "kind": "exact",
+     "year": 1975
+    },
+    "place": {
+     "name": "Westfeld",
+     "lat": 41.9,
+     "lon": -87.6
+    }
+   }
+  },
+  {
+   "id": "p_8",
+   "givenNames": "Greta",
+   "surname": "Fernblick",
+   "sex": "F",
+   "birth": {
+    "date": {
+     "kind": "exact",
+     "year": 1908
+    },
+    "place": {
+     "name": "Ort ohne Koordinaten"
+    }
+   },
+   "death": {
+    "date": {
+     "kind": "exact",
+     "year": 1990
+    },
+    "place": {
+     "name": "Westfeld",
+     "lat": 41.9,
+     "lon": -87.6
+    }
+   }
+  }
+ ],
+ "unions": [
+  {
+   "id": "u_1",
+   "partnerIds": [
+    "p_1",
+    "p_2"
+   ],
+   "kind": "marriage",
+   "order": 1,
+   "start": {
+    "date": {
+     "kind": "exact",
+     "year": 1840
+    },
+    "place": {
+     "name": "Musterdorf",
+     "lat": 48.2,
+     "lon": 11.5
+    }
+   },
+   "children": [
+    {
+     "personId": "p_3",
+     "kind": "biological"
+    }
+   ]
+  },
+  {
+   "id": "u_2",
+   "partnerIds": [
+    "p_3",
+    "p_4"
+   ],
+   "kind": "marriage",
+   "order": 1,
+   "start": {
+    "date": {
+     "kind": "exact",
+     "year": 1869
+    },
+    "place": {
+     "name": "Beispielhafen",
+     "lat": 53.55,
+     "lon": 8.58
+    }
+   },
+   "children": [
+    {
+     "personId": "p_5",
+     "kind": "biological"
+    },
+    {
+     "personId": "p_6",
+     "kind": "biological"
+    }
+   ]
+  },
+  {
+   "id": "u_3",
+   "partnerIds": [
+    "p_5",
+    "p_8"
+   ],
+   "kind": "marriage",
+   "order": 1,
+   "start": {
+    "date": {
+     "kind": "exact",
+     "year": 1903
+    },
+    "place": {
+     "name": "Westfeld",
+     "lat": 41.9,
+     "lon": -87.6
+    }
+   },
+   "children": [
+    {
+     "personId": "p_7",
+     "kind": "biological"
+    }
+   ]
+  }
+ ]
+}

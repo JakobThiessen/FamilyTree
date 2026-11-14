@@ -71,10 +71,10 @@ Konzept: [UI-KONZEPT.md](UI-KONZEPT.md), Schritte 0–2. Reihenfolge danach: Ahn
 - [x] FamilySearch (API-Schlüssel nötig, optional): nur Gerüst, ungeprüft (D25)
 - [x] Dublettenvorschläge, Treffer als „vermutet“ markieren
 
-## M9a–c – Ahnen, Zeitleiste, Karte ⬜
+## M9a–c – Ahnen, Zeitleiste, Karte ✅
 - [x] M9a Ahnen: Ahnentafel mit Sosa-Nummern, Ahnenschwund, Inzuchtkoeffizient (D29; Fächerdiagramm offen)
 - [x] M9b Zeitleiste: `src/core/timeline.ts`, Lebensbalken, unscharfe Daten (D30)
-- [ ] Karte: Orte als Liste, dann Offline-Weltkarte; Orte per Wikidata auf Auslösung (UI-KONZEPT „Entschieden“)
+- [x] M9c Karte: Orte als Liste, Offline-Weltkarte (handgebaut, grob), Lebenswege, Orte per Wikidata auf Auslösung (D31)
 - [ ] Optional: Forschung, Quellen
 
 ## M9 – Feinschliff ⬜

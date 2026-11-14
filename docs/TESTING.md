@@ -19,6 +19,7 @@
 | Suche/Details | Namenssuche (Akzente, Wortanfang, Jahre), `describePerson` (Quellen, Links, Eltern, Partnerschaften) in `tests/ui` |
 | Darstellung | Kamera, Raster, Szene (Stile, S-Kurven, Spuren im rechtwinkligen Modus, Filter, „+n“) in `tests/render`; das Zeichnen selbst nur von Hand |
 | Online-Quellen | Anbieter mit nachgebauten Antworten (erfundene Personen, kein Netz), Dubletten, `adoptBatch`, `replaceTree` in `tests/providers` |
+| Ahnen, Zeitleiste, Karte | Ahnentafel/Sosa, Ahnenschwund (`tests/core/pedigree.test.ts`), Lebensbalken und Schätzung (`timeline.test.ts`), Orte und Lebenswege (`places.test.ts`, Beispiel `migration.json`), Ortssuche mit Attrappen (`tests/providers/placeLookup.test.ts`) |
 
 ## Manuell
 

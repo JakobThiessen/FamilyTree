@@ -8,6 +8,7 @@
   import { TreeStore } from "../storage";
   import type { TreeMeta } from "../storage";
   import AncestorsView from "./AncestorsView.svelte";
+  import MapView from "./MapView.svelte";
   import TimelineView from "./TimelineView.svelte";
   import ImportDialog from "./ImportDialog.svelte";
   import OnlineDialog from "./OnlineDialog.svelte";
@@ -38,9 +39,6 @@
     { id: "timeline", label: "Zeitleiste" },
     { id: "map", label: "Karte" },
   ];
-  const SOON: Record<"map", string> = {
-    map: "Orte und Lebenswege",
-  };
 
   let dialog: ReturnType<typeof ImportDialog>;
   let online: ReturnType<typeof OnlineDialog>;
@@ -191,10 +189,7 @@
     {:else if tab === "timeline"}
       <div class="stage"><TimelineView {graph} {persons} {focusId} onPick={pickKeepTab} /></div>
     {:else if tab === "map"}
-      <div class="stage soon">
-        <h2>{TABS.find((t) => t.id === tab)?.label}</h2>
-        <p>Folgt: {SOON.map}.</p>
-      </div>
+      <div class="stage"><MapView {graph} {focusId} onPick={pickKeepTab} /></div>
     {/if}
     {#if data && tab === "tree" && panelOpen}
       <aside>
@@ -229,8 +224,6 @@
   .search-slot { width: 14rem; }
   .lang { padding: 0.3rem 0.4rem; }
   .stage.hidden { display: none; }
-  .stage.soon { padding: 3rem 1.5rem; text-align: center; color: var(--dim); grid-column: 1 / -1; }
-  .stage.soon h2 { color: var(--text); margin: 0 0 0.5rem; }
   .name { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 30vw; }
   .grow { flex: 1; }
   .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
