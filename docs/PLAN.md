@@ -27,10 +27,10 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 - [x] Export zurück nach GEDCOM und JSON
 - [x] Tests mit `example/gedcom/*`, Round-Trip
 
-## M3 – Speicherung ⬜
-- [ ] IndexedDB-Schema, Import persistieren
-- [ ] Mehrere Bäume/Projekte verwalten
-- [ ] Laden nach Bedarf (nur benötigte Personen)
+## M3 – Speicherung ✅
+- [x] IndexedDB-Schema, Import persistieren
+- [x] Mehrere Bäume/Projekte verwalten
+- [x] Laden nach Bedarf (nur benötigte Personen)
 
 ## M4 – Verwandtschaft und bidirektionale Suche ⬜
 - [ ] Vorfahren-/Nachfahrenmenge je Tiefe

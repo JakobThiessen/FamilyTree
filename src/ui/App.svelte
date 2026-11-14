@@ -1,13 +1,79 @@
 <script lang="ts">
-  // Minimale Import-/Export-Oberfläche für M2. Die echte Oberfläche kommt in M7,
-  // die Speicherung (IndexedDB) in M3: Der Baum liegt hier nur im Arbeitsspeicher.
+  // Minimale Oberfläche für M2/M3 (Import, Export, gespeicherte Bäume).
+  // Die echte Oberfläche und der Import-Dialog kommen in M7.
   import { FamilyGraph, serializeTreeData } from "../core";
   import type { TreeData } from "../core";
   import { exportGedcom } from "../import/gedcomExport";
   import type { ImportWarning } from "../import/gedcomImport";
   import { importFileInWorker } from "../workers/importClient";
+  import { TreeStore } from "../storage";
+  import type { TreeMeta } from "../storage";
+  import { onMount } from "svelte";
 
-  let data = $state<TreeData | null>(null);
+  // Speicher (IndexedDB). Wird beim Start geöffnet; fehlt IndexedDB, läuft die App ohne Speicherung.
+  let store = $state.raw<TreeStore | null>(null);
+  let saved = $state<TreeMeta[]>([]);
+  let storageError = $state("");
+
+  async function refresh() {
+    if (store) saved = await store.listTrees();
+  }
+
+  onMount(async () => {
+    try {
+      store = await TreeStore.open();
+      await refresh();
+    } catch (e) {
+      storageError = "Speicher nicht verfügbar: " + (e instanceof Error ? e.message : String(e));
+    }
+  });
+
+  /** Zeigt Daten an (nach Import oder Laden) und meldet inhaltliche Probleme des Graphen. */
+  function show(d: TreeData, name: string) {
+    data = d;
+    fileName = name;
+    issues = new FamilyGraph(d).validate().map((i) => `${i.code}: ${i.message}`);
+  }
+
+  async function saveCurrent() {
+    if (!store || !data) return;
+    try {
+      await store.saveTree(baseName(), data);
+      await refresh();
+    } catch (e) {
+      storageError = "Speichern fehlgeschlagen: " + (e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function openSaved(t: TreeMeta) {
+    if (!store) return;
+    busy = true;
+    try {
+      warnings = [];
+      charset = "";
+      show(await store.loadTree(t.id), t.name);
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function renameSaved(t: TreeMeta) {
+    const name = prompt("Neuer Name:", t.name);
+    if (!store || name === null) return;
+    await store.renameTree(t.id, name);
+    await refresh();
+  }
+
+  async function deleteSaved(t: TreeMeta) {
+    if (!store || !confirm(`"${t.name}" endgültig löschen?`)) return;
+    await store.deleteTree(t.id);
+    await refresh();
+  }
+
+  // $state.raw: kein Proxy, denn IndexedDB kann Proxy-Objekte nicht speichern (und große Bäume brauchen keine Tiefenreaktivität).
+  let data = $state.raw<TreeData | null>(null);
   let fileName = $state("");
   let charset = $state("");
   let warnings = $state<ImportWarning[]>([]);
@@ -22,12 +88,9 @@
     error = "";
     try {
       const result = await importFileInWorker(file);
-      data = result.data;
-      fileName = file.name;
       charset = result.charset ?? "";
       warnings = result.warnings;
-      // Der Graph meldet inhaltliche Probleme (Zyklen, hängende Verweise) statt zu werfen.
-      issues = new FamilyGraph(result.data).validate().map((i) => `${i.code}: ${i.message}`);
+      show(result.data, file.name);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -56,7 +119,7 @@
 
 <main>
   <h1>FamilyTree</h1>
-  <p>Meilenstein M2: GEDCOM- oder JSON-Datei laden und wieder exportieren.</p>
+  <p>Meilenstein M3: GEDCOM- oder JSON-Datei laden, speichern (IndexedDB) und exportieren.</p>
 
   <label
     class="drop"
@@ -71,6 +134,24 @@
 
   {#if error}<p class="error">Fehler: {error}</p>{/if}
 
+  {#if storageError}<p class="error">{storageError}</p>{/if}
+
+  {#if saved.length}
+    <section>
+      <h2>Gespeicherte Bäume</h2>
+      <ul>
+        {#each saved as t (t.id)}
+          <li>
+            <strong>{t.name}</strong> ({t.personCount} Personen)
+            <button onclick={() => openSaved(t)}>Laden</button>
+            <button onclick={() => renameSaved(t)}>Umbenennen</button>
+            <button onclick={() => deleteSaved(t)}>Löschen</button>
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+
   {#if data}
     <section>
       <h2>{fileName}</h2>
@@ -78,6 +159,7 @@
         {data.persons.length} Personen, {data.unions.length} Partnerschaften, {data.sources.length} Quellen
         {#if charset}(Zeichensatz: {charset}){/if}
       </p>
+      <button onclick={saveCurrent} disabled={!store}>Im Browser speichern</button>
       <button onclick={() => download(exportGedcom(data!), `${baseName()}.ged`, "text/plain;charset=utf-8")}>
         Als GEDCOM exportieren
       </button>

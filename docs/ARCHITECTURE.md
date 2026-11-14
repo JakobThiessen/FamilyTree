@@ -62,5 +62,6 @@ Treffer werden als `assumed` importiert und nie automatisch mit vorhandenen Pers
 | vite, typescript | Build, Typen |
 | svelte | Oberfläche |
 | pixi.js (optional, M6) | WebGL-Rendering |
-| idb | IndexedDB-Komfort |
+| idb | IndexedDB-Komfort (in M3 eingebaut) |
+| fake-indexeddb (nur Tests) | IndexedDB in Node für `tests/storage` |
 | vitest | Tests |
