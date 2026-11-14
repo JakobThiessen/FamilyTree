@@ -68,3 +68,27 @@ Voll-Geschwister = gleiche Union; Halb-Geschwister = gemeinsamer Elternteil in a
 
 ## D16 – Inzuchtkoeffizient (2026-11-14)
 Nach Wright/Malécot über die rekursive Kinship-Formel: φ(x,y) ersetzt die Person mit dem größeren Rang (längster Weg bis zu einem Gründer) durch den Mittelwert über ihre Eltern; F(x) = φ(Vater, Mutter). Vorteile gegenüber dem Aufzählen aller Wege: Inzucht der Ahnen fließt automatisch ein, jedes Paar wird nur einmal gerechnet (Zwischenspeicher in `KinshipCalculator`). Eltern = Partner der ersten Eltern-Union mit Art `biological`/`unknown`; Adoptiv- und Pflegeeltern nur mit `includeAdopted`. Bei nur einem bekannten Elternteil ist F = 0. Geprüft an Grundfällen (Geschwister 1/4, Onkel/Nichte 1/8, Halbgeschwister 1/8, Cousins 1/16, Vater/Tochter 1/4). Keine neuen Abhängigkeiten in M4.
+
+## D17 – Layout: Ansicht und Modi (2026-11-14)
+- Ansicht = Fokus + Tiefe `up`/`down` + Modus. Die Tiefe zählt über den **kürzesten** Weg wie in M4 (`ancestorLevels`); wer über einen längeren Weg tiefer liegt, steht trotzdem in seiner tiefsten Schicht (D18).
+- `direct`: nur Fokus, Vorfahren, Nachfahren („Linie“). Partner stehen nur, wenn sie selbst Eltern in der Linie sind. `family`: zusätzlich Partner aller Linienpersonen sowie Geschwister und Halbgeschwister, deren Eltern in der Ansicht stehen; diese Zusatzpersonen sind Blätter. `all`: alles über Eltern, Kinder und Partner, solange die Schicht zwischen −up und +down liegt. Die UI-Filter „Direkte Linie / Familie / Alle“ (M7) bilden darauf ab.
+- Randzähler für „+n“: `hiddenParents` nur für Schichten ≤ 0, `hiddenChildren` nur für Schichten ≥ 0 (sonst würden Vorfahren wegen ihrer nicht gezeigten Geschwister „+n“ tragen).
+- Ist der Fokus unbekannt, ist das Ergebnis leer (`focusKey: null`). Im Modus `all` begrenzt nur das Fenster die Größe; die Obergrenze wählt der Aufrufer.
+
+## D18 – Layout: Schichten (2026-11-14)
+- Personen, die über Unions verbunden sind, bilden eine **Gruppe** (= ein Band) und stehen in derselben Schicht.
+- Schicht der Linie = **längster Weg** vom Fokus (Kahn-Verfahren auf dem Gruppengraphen), Vorfahren negativ, Nachfahren positiv. Das ist die „tiefste benötigte Schicht“ und garantiert, dass Eltern immer über ihren Kindern stehen. Kürzeste Wege (wie in M4) würden Eltern neben Kinder legen.
+- Zusatzpersonen: Kinder = Schicht der Eltern + 1 (das Maximum), Eltern = Schicht der Kinder − 1 (das Minimum). Zyklen in kaputten Daten brechen nicht ab, sondern erscheinen in `conflicts`.
+- Bandreihenfolge: wer die meisten Partnerschaften hat, steht links, danach seine Partner nach `Union.order`, deren weitere Partner direkt dahinter. Bei genau zwei Personen steht der Mann links.
+
+## D19 – Layout: Geisterknoten (2026-11-14)
+- Jede Gruppe steht genau einmal echt, jede Beziehung „Union – Kind“ wird genau einmal gezeichnet (Tiefensuche vom Fokus, Aufstieg vor Abstieg). Wird eine Gruppe über eine zweite Beziehung erreicht, entsteht stattdessen ein Geist: beim Aufstieg ein Geisterband der Eltern über dem Kind (mit eigenem `LayoutUnion`, `ghost: true`), beim Abstieg eine Geisterkarte des Kindes unter der Union. Geister haben keine eigenen Eltern oder Kinder.
+- Vorfahrenbänder zeigen nur Zusatzpersonen als Kinder (Geschwister); Linienkinder kommen über ihren eigenen Weg. Dadurch ist der Ahnenbaum symmetrisch und Geister entstehen nur bei echtem Ahnenschwund. Echte Kinderbänder einer Union werden vor dem Abstieg in die Tiefe angelegt, damit der Abstieg gegen einen späteren Aufstieg gewinnt.
+- Schlüssel: echte Karte = Personen-ID, Geist = `<Personen-ID>~up:<Union>:<Kind>` bzw. `~dn:<Union>:<Kind>`. Sie hängen nur von der Beziehung ab und bleiben über Chunks stabil.
+- Bekannte Grenze: Ändert sich bei größerer Ansicht, welcher Weg zuerst erreicht wird, kann eine echte Karte weiter von einem ihrer Kinder stehen als nötig (lange Linie). `reset` (Layout neu beginnen) behebt das.
+
+## D20 – Layout: Positionen, Inkrementalität und Worker (2026-11-14)
+- Positionen: Teilbaumbreite (größte Breite über alle Schichten des Teilbaums), jedes Band mittig über seinen Teilbaum, Geschwister daneben; dann je Schicht Überlappungen mit isotoner Regression (Reihenfolge bleibt, Verschiebung minimal). Keine Kreuzungsminimierung nach Sugiyama: bei einem Baum mit Geistern ist die Reihenfolge der Tiefensuche schon kreuzungsfrei. Das Ergebnis ist immer überlappungsfrei; bei `family`/`all` sind Linien teils schräg (Feinschliff in M6).
+- Inkrementell (`LayoutSession`, gleicher Fokus und Modus): Bänder mit gleicher ID, Schicht und Kartenreihenfolge behalten ihre Position, neue Bänder werden um die mittlere Verschiebung versetzt und in die nächste freie Lücke ihrer Schicht gesetzt. Schon platzierte Personen behalten ihre Schicht. `added` nennt die neuen Karten. Ändert sich ein Band (neues Mitglied), wird es neu platziert. Schrumpft die Ansicht und wächst wieder, bezieht sich das Layout nur auf das letzte Ergebnis.
+- Worker: eine langlebige Instanz (anders als der Import-Worker), weil sie die Positionen hält. Nachrichten `setData`/`layout`/`reset` mit Kennung; die Logik steckt in `layoutHandler.ts` und ist ohne Browser testbar. Der Worker bekommt Baumdaten (`setData`, auch ein Ausschnitt aus `loadNeighborhood`), nicht die IndexedDB.
+- Leistung: Chunk bei 50.000 Personen 0,3–4 ms (31–95 Karten); 1.750 Karten ca. 55 ms; 9.600 Karten ca. 190 ms (Richtwert 20 µs je Karte). Das Ziel < 100 ms ist für realistische Chunks erreicht. Keine neuen Abhängigkeiten.

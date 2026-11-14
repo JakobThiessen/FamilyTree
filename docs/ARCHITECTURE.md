@@ -42,6 +42,8 @@
 - Generationsindex: Fokus = 0, Eltern = −1, Kinder = +1. Bei Schleifen wird der Knoten in die tiefste benötigte Schicht gelegt.
 - Partner stehen im selben Band, sortiert nach Ehe-Reihenfolge.
 - Kanten: durchgezogen = belegt, gestrichelt = vermutet.
+- Geisterknoten: Jede Person steht einmal echt. Wird sie über einen zweiten Weg erreicht (Ahnenschwund, Heirat unter Verwandten), entsteht dort eine Geisterkarte, die auf die echte verweist.
+- Umsetzung in `src/core/layout` (Auswahl, Schichten, Bänder/Geister, Positionen); Details in DECISIONS D17–D20.
 
 ## Provider-Schnittstelle (Entwurf)
 

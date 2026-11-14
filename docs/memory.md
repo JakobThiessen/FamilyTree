@@ -14,8 +14,9 @@ Browser-Stammbaumsoftware (TypeScript, Vite, Svelte), die von jeder Fokusperson 
 - Inspiration: Stammbaum-App aus Niklas Steenfatts Video (kein Quellcode öffentlich gefunden). Dunkles Design, Familienlinien-Farben, gestrichelt = unbestätigt, Filter „Direkte Linie / Familie / Alle“.
 
 ## Aktueller Stand
-- M0 bis M4 abgeschlossen. Nächster Schritt: **M5 – Layout** (Generationenschichten, Sanduhr, Partnerbänder, Geisterknoten; Layout im Worker).
+- M0 bis M5 abgeschlossen. Nächster Schritt: **M6 – Darstellung** (Canvas, Zoom/Verschieben, Culling, „+n“-Knoten, Personenkarten, Linienstile, Familienfarben, Test mit 50.000 Personen). M6 zeichnet nur, was `LayoutResult` liefert; der Layout-Kern bleibt unberührt.
 - Verwandtschafts-API (`src/core`, M4, D14–D16): `ancestorLevels`/`descendantLevels(g, id, {maxDepth})`, `ancestorProfile`, `pedigreeCollapse(g, id)` (Ahnenschwund: `repeated`, `generations`, `implex`), `findCommonAncestors(g, a, b)` (alle gemeinsamen Vorfahren, `lowest` markiert), `describeRelationship(g, a, b)` (sagt, was A für B ist; `label`, `blood[]`, `partner`, `inLaw[]`), `bloodRelationLabel(up, down, sex, half)`, `inbreedingCoefficient(g, id)` bzw. `new KinshipCalculator(g)`. Für M5: `ancestorLevels`/`pedigreeCollapse` liefern die Schichten und doppelten Ahnen (Geisterknoten).
+- Layout-API (`src/core/layout`, M5, D17–D20): `layoutView(graph, {focusId, up, down, mode}, options?, previous?)` bzw. `new LayoutSession({persons, unions}).layout(request)` -> `LayoutResult { nodes, bands, unions, bounds, added, stats, conflicts }`. Karten (`LayoutNode`) haben Mittelpunkt `x/y`, `layer`, `ghost`, `bandId`, `hiddenParents/hiddenChildren` („+n“). `LayoutUnion` ist der Ankerpunkt für Kinderlinien (`partnerKeys`, `children[].key/kind/status`). Geister: `ghost: true`, `personId` zeigt auf die echte Karte, Schlüssel `<id>~<Herkunft>`. Im Browser: `new LayoutClient()` aus `src/workers/layoutClient.ts` (`setData`, `layout`, `reset`, `dispose`); der Worker merkt sich die Positionen. Modi: `direct` (nur Linie), `family` (+ Partner, Geschwister), `all` (alles im Fenster −up..+down). Gleicher Fokus und Modus = inkrementell.
 - Speicher-API (`src/storage`): `const store = await TreeStore.open()`; `saveTree(name, treeData)`, `listTrees`, `renameTree`, `deleteTree`, `loadTree`, `loadPersons(treeId, ids)`, `loadUnionsOf(treeId, personId)`, `loadNeighborhood(treeId, focusId, {up, down})` (liefert `TreeData`-Teilgraph, den man in `FamilyGraph` stecken kann; Ränder fehlen absichtlich). Schema und Entscheidungen: D13.
 - Kern-API: `import { FamilyGraph, loadGraph, parseFuzzyDate, formatFuzzyDate, serializeTreeData } from "src/core"`. Der Graph wirft bei fehlerhaften Daten nicht, sondern sammelt Probleme in `validate()`.
 - Import-API (`src/import`, reines TS): `importGedcom(textOderBytes) -> { data: TreeData, warnings, charset? }`, `importFileContent(name, bytes)` (JSON oder GEDCOM), `exportGedcom(data)`, `parseGedcomDate`/`formatGedcomDate`. Im Browser läuft der Import über `src/workers/importClient.ts` (`importFileInWorker(file)`) im Web Worker.
@@ -25,6 +26,7 @@ Browser-Stammbaumsoftware (TypeScript, Vite, Svelte), die von jeder Fokusperson 
 - Im Browser geprüft (M3): Worker-Import, Drop, Speichern, Neuladen, Laden, Umbenennen, Löschen. Tests, Typecheck und Build laufen.
 
 ## Offene Fragen
+- Layout-Qualität bei vielen Zusatzpersonen (`family`/`all`) ist „gut genug“; Feinschliff (Kreuzungen, Kantenführung) gehört in M6 nach Sicht im Browser.
 - PixiJS oder Canvas 2D (Entscheidung bei M6 per Messung).
 - Zweisprachigkeit DE/EN ab M9?
 

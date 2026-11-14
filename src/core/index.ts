@@ -6,3 +6,4 @@ export * from "./loader";
 export * from "./ancestry";
 export * from "./kinship";
 export * from "./inbreeding";
+export * from "./layout";

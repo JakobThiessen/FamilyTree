@@ -39,11 +39,11 @@ Status: ⬜ offen · 🟨 in Arbeit · ✅ fertig
 - [x] Inzuchtkoeffizient
 - [x] Erkennung von Ahnenschwund
 
-## M5 – Layout ⬜
-- [ ] Generationenschichten, Sanduhr-Layout (Ahnen oben, Nachfahren unten)
-- [ ] Partnerbänder mit Reihenfolge der Ehen
-- [ ] Geisterknoten für doppelte Ahnen
-- [ ] Layout im Worker, inkrementell pro Chunk
+## M5 – Layout ✅
+- [x] Generationenschichten, Sanduhr-Layout (Ahnen oben, Nachfahren unten)
+- [x] Partnerbänder mit Reihenfolge der Ehen
+- [x] Geisterknoten für doppelte Ahnen
+- [x] Layout im Worker, inkrementell pro Chunk
 
 ## M6 – Darstellung ⬜
 - [ ] Canvas-Zeichenfläche, Zoom und Verschieben, Viewport-Culling

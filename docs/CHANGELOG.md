@@ -4,6 +4,17 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M5)
+- Layout-Kern `src/core/layout` (reines TypeScript): `layoutView(graph, request, options?, previous?)` und `LayoutSession` liefern `LayoutResult` mit Karten (`nodes`), Partnerbändern (`bands`), Union-Ankern (`unions`), Rahmen und Statistik
+- Sanduhr mit Generationenschichten (Fokus 0, Eltern −1, Kinder +1), bei Schleifen tiefste benötigte Schicht (längster Weg); Modi `direct`, `family`, `all`
+- Partnerbänder: Partner im selben Band, Mehrfach-Ehen nach `Union.order`; Geschwister und Halbgeschwister im Modus `family`/`all`
+- Geisterknoten für doppelte Ahnen (Ahnenschwund) und doppelt erreichte Partner; „+n“-Zähler `hiddenParents`/`hiddenChildren`
+- Inkrementell: gleicher Fokus und Modus = vorhandene Karten behalten x/y, `added` nennt neue Karten
+- Layout-Worker: `src/workers/layoutWorker.ts`, `layoutHandler.ts`, `layoutMessages.ts`, `layoutClient.ts` (`LayoutClient`: `setData`, `layout`, `reset`, `dispose`)
+- Tests in `tests/core/layout.test.ts` (Cousinenheirat, Mehrfach-Ehen, Schleifen, Adoption, kaputte Daten, inkrementell, Worker-Handler, Performance)
+- Entscheidungen D17–D20
+- Im Browser (Vite-Entwicklungsserver) geprüft: `LayoutClient` startet den Worker, Nachladen verschiebt nichts, Geister erscheinen
+
 ### Hinzugefügt (M4)
 - `src/core/ancestry.ts`: `ancestorLevels` / `descendantLevels` (Personen je Tiefe), `ancestorProfile` (Wege je Tiefe), `pedigreeCollapse` / `hasPedigreeCollapse` (Ahnenschwund mit mehrfach erreichbaren Ahnen, Statistik je Tiefe und Implex)
 - `src/core/kinship.ts`: `findCommonAncestors` (bidirektionale Suche, **alle** gemeinsamen Vorfahren, niedrigste markiert), `describeRelationship` (Blutsverwandtschaft mit mehreren Linien, Partner, Verwandtschaft durch Heirat) und `bloodRelationLabel` (deutsche Bezeichnungen: Onkel, Neffe, Cousin n. Grades, Halbgeschwister, Schwager, Stiefeltern …)
