@@ -22,6 +22,17 @@ export const de = {
   "app.saveFailed": "Speichern fehlgeschlagen: {error}",
   "app.notSaved": " Noch nicht gespeichert.",
 
+  // ---- Bearbeiten (Schritt 3: Sitzung, Undo/Redo, Sicherung) ----
+  "edit.undo": "Rückgängig",
+  "edit.undo.title": "Letzte Änderung rückgängig machen (Strg+Z)",
+  "edit.redo": "Wiederholen",
+  "edit.redo.title": "Rückgängig gemachte Änderung wiederholen (Strg+Y)",
+  "edit.reject.nothing-to-undo": "Nichts zum Rückgängigmachen.",
+  "edit.reject.nothing-to-redo": "Nichts zum Wiederholen.",
+  "edit.saveFailed": "Änderung nicht in den Speicher geschrieben: {error} Sie gilt nur in dieser Sitzung.",
+  "edit.unsaved": "Änderungen liegen nur im Arbeitsspeicher und gehen beim Schließen verloren. Erst speichern?",
+  "edit.unsaved.save": "Jetzt speichern",
+
   // ---- Import-Dialog ----
   "import.title.open": "Stammbaum öffnen",
   "import.title.check": "Import prüfen",

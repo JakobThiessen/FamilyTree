@@ -14,6 +14,9 @@ export function createLayoutHandler(): (msg: LayoutRequest) => LayoutResponse {
         case "setData":
           session.setData(msg.data);
           return { id: msg.id, ok: true };
+        case "applyChanges":
+          session.applyChanges(msg.changes);
+          return { id: msg.id, ok: true };
         case "layout":
           return { id: msg.id, ok: true, result: session.layout(msg.request) };
         case "reset":

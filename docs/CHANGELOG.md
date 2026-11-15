@@ -4,6 +4,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M10 Schritt 3: Datenfluss, Undo/Redo, Sicherungshinweis, D39)
+- `src/core/editSession.ts` (reines TS): `EditSession` hält den Baum und die Rückgängig-/Wiederholen-Stapel aus den `inverse`-Operationen (höchstens 200 Schritte, nur in der Sitzung). `apply(op)`, `undo()`, `redo()` liefern Ergebnis mit Hinweisen oder Ablehnung (Code + Parameter), `canUndo`/`canRedo`, `changesSinceSave`/`markSaved()` (für Schritt 7), `reset(data)`. Eine neue Operation leert den Wiederholen-Stapel
+- `App.svelte`: Sitzung und `treeKey` (nur ein neuer Baum baut die Ansicht neu auf, Änderungen nicht mehr über `{#key data}`); `afterStep` übernimmt jeden Schritt: Daten, Suchindex, Ansicht (`TreeViewer.updateData`, ohne Kamerasprung; Fokus wechselt auf Partner/Eltern/Kind, wenn die Fokusperson gelöscht wurde), gezieltes Schreiben (`store.applyChanges`, Fehler als Meldung, Stand im Speicher bleibt). Ungespeicherter Baum: Hinweis „erst speichern?“ mit Knopf. Knöpfe „Rückgängig“/„Wiederholen“ und Tasten Strg+Z, Strg+Y, Strg+Umschalt+Z (nicht in Eingabefeldern und offenen Dialogen)
+- Layout-Worker: neue Nachricht `applyChanges` (`LayoutSession.applyChanges`) schickt nur die Änderungsliste statt des ganzen Baums; `PersonSearchIndex.update(put, remove)` führt die Suche nach statt sie neu zu bauen
+- Nur Entwicklung (`import.meta.env.DEV`): `window.__edit.apply(op)`, `.undo()`, `.redo()`, `.session()`, bis das Formular (Schritt 4) da ist
+- Neue Texte `edit.*` in `de.ts` und `en.ts`; 271 → 281 Tests (`tests/core/editSession.test.ts` 8, `PersonSearchIndex.update`, `LayoutSession.applyChanges`)
+
 ### Hinzugefügt (M10 Schritt 1+2: Änderungs-Kern und gezieltes Speichern, D38)
 - `src/core/edit.ts` (reines TS): `applyEdit(data, op)` → `{ ok, data, inverse, touched, created, notes }` oder `{ ok: false, reject }`. Operationen `addPerson`/`updatePerson`/`deletePerson`, `addUnion`/`updateUnion`/`deleteUnion`, `linkChild`/`unlinkChild`, `addSource`/`updateSource` und `patch` (Umkehr/Redo). Prüft die Invarianten (kein Zyklus, Kind höchstens in einer biologischen Union, Partner/Kinder/Quellen existieren, höchstens 2 verschiedene Partner). Person löschen: raus aus Unions, Kinder bleiben, Union ohne Partner und ohne Kinder verschwindet. `changesFromTouched(data, touched)` macht aus den berührten IDs eine Änderungsliste (`TreeChanges`)
 - Ablehnungen (`edit.reject.*`) und Hinweise (`edit.note.*`) als Code + Parameter (D37); Übersetzungen in der UI folgen mit Schritt 4–6

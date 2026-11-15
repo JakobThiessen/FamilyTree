@@ -1,4 +1,5 @@
 /** Brücke zum Layout-Worker (nur im Browser; benutzt `Worker`). */
+import type { TreeChanges } from "../core/edit";
 import type { LayoutResult } from "../core/layout";
 import type { TreeData, ViewRequest } from "../core/types";
 import type { LayoutRequest, LayoutResponse } from "./layoutMessages";
@@ -49,6 +50,11 @@ export class LayoutClient {
   /** Baumdaten (oder einen größeren Ausschnitt davon) an den Worker geben. */
   async setData(data: Pick<TreeData, "persons" | "unions">): Promise<void> {
     await this.expectOk(this.send({ type: "setData", data }));
+  }
+
+  /** Nur geänderte Datensätze an den Worker geben (statt des ganzen Baums). */
+  async applyChanges(changes: TreeChanges): Promise<void> {
+    await this.expectOk(this.send({ type: "applyChanges", changes }));
   }
 
   /** Layout einer Ansicht. Gleicher Fokus und Modus wie zuvor = inkrementell (`result.added` nennt die neuen Karten). */

@@ -1,14 +1,11 @@
 <script lang="ts">
   // Namenssuche mit Trefferliste (Combobox: Pfeiltasten, Enter, Esc). Taste „/“ springt ins Feld.
-  import type { Person, PersonId } from "../core";
-  import { PersonSearchIndex } from "../core";
+  import type { Person, PersonId, PersonSearchIndex } from "../core";
   import { displayName, lifeSpan } from "../render/style";
   import { t } from "./lang.svelte";
 
-  let { persons, onPick }: { persons: ReadonlyMap<PersonId, Person>; onPick: (id: PersonId) => void } = $props();
-
-  // Der Index entsteht einmal pro Baum (Normalisieren von 50.000 Namen dauert nur wenige Millisekunden).
-  const index = $derived(new PersonSearchIndex(persons.values()));
+  // Der Index gehört App.svelte: einmal pro Baum aufgebaut, beim Bearbeiten nur nachgeführt (`rev` zählt die Änderungen).
+  let { persons, index, rev, onPick }: { persons: ReadonlyMap<PersonId, Person>; index: PersonSearchIndex; rev: number; onPick: (id: PersonId) => void } = $props();
 
   // Index schon beim Öffnen des Baums aufbauen, nicht erst beim ersten Tastendruck.
   $effect(() => {
@@ -21,7 +18,7 @@
   let active = $state(0);
   let input: HTMLInputElement;
 
-  const hits = $derived(query.trim() ? index.search(query, 12) : []);
+  const hits = $derived((void rev, query.trim() ? index.search(query, 12) : []));
 
   function pick(id: PersonId) {
     onPick(id);

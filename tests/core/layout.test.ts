@@ -249,6 +249,22 @@ describe("Layout: inkrementell pro Chunk", () => {
     expectSound(g, second);
   });
 
+  it("führt Änderungslisten nach (applyChanges) wie ein neuer Stand mit setData", () => {
+    const g = load("multiple-marriages.json");
+    const persons = [...g.persons()];
+    const unions = [...g.unions()];
+    const session = new LayoutSession({ persons, unions });
+    const focus = persons[0]!.id;
+    session.layout(req(focus, 2, 2, "family"));
+    session.applyChanges({ putPersons: [{ id: "p_new", givenNames: "Neu", surname: "Muster", sex: "F" }, { ...persons[1]!, givenNames: "Geändert" }] });
+    session.reset();
+    const after = session.layout(req(focus, 2, 2, "family"));
+    const fresh = new LayoutSession({ persons: [...persons.map((p) => (p.id === persons[1]!.id ? { ...p, givenNames: "Geändert" } : p)), { id: "p_new", givenNames: "Neu", surname: "Muster", sex: "F" }], unions }).layout(req(focus, 2, 2, "family"));
+    expect(after.nodes.map((n) => [n.key, n.x, n.y])).toEqual(fresh.nodes.map((n) => [n.key, n.x, n.y]));
+    // eine Union mit unbekanntem Partner passt nicht zum Stand: wirft, Stand bleibt
+    expect(() => session.applyChanges({ putUnions: [{ id: "u_bad", partnerIds: ["nobody"], kind: "marriage", children: [] }] })).toThrow();
+  });
+
   it("verschiebt auch bei Geistern und Familienmodus nichts", () => {
     const g = load("multiple-marriages.json");
     const session = new LayoutSession({ persons: [...g.persons()], unions: [...g.unions()] });

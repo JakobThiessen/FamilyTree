@@ -31,6 +31,14 @@ describe("Namenssuche", () => {
     expect(index.search("karl 1850")).toEqual([]);
     expect(index.search("1901").map((h) => h.id)).toEqual(["c"]);
   });
+  it("führt Änderungen nach (update)", () => {
+    const idx = new PersonSearchIndex(persons);
+    idx.update([{ id: "b", givenNames: "Berta", surname: "Neumann", sex: "F" }, { id: "e", givenNames: "Emil", surname: "Neumann", sex: "M" }], ["c"]);
+    expect(idx.size).toBe(4);
+    expect(idx.search("neumann").map((h) => h.id).sort()).toEqual(["b", "e"]);
+    expect(idx.search("schmidt")).toEqual([]);
+    expect(idx.search("strauss")).toEqual([]);
+  });
   it("leere Anfrage und Limit", () => {
     expect(index.search("   ")).toEqual([]);
     expect(index.search("a", 2)).toHaveLength(2);

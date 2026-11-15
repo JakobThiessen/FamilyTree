@@ -38,6 +38,11 @@ export function disclosureText(providerId: string, lang: Lang, fallback: string)
   return has(key) ? translate(lang, key) : fallback;
 }
 
+/** Ablehnung oder Hinweis des Änderungs-Kerns (`edit.reject.*`, `edit.note.*`); ohne Übersetzung bleibt der Code stehen. */
+export function editText(ref: { code: string; params?: Vars }, lang: Lang): string {
+  return has(ref.code) ? translate(lang, ref.code, ref.params) : ref.code;
+}
+
 /** Fehlertext für Anzeige: Anbieter-, Format-, Worker- und Speicherfehler übersetzt, sonst die Meldung selbst. */
 export function errorText(e: unknown, lang: Lang): string {
   if (!(e instanceof Error)) return String(e);

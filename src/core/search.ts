@@ -30,21 +30,31 @@ interface Entry {
   sortKey: string;
 }
 
+function toEntry(p: Person): Entry {
+  const parts = [p.givenNames, p.surname, p.birth?.date?.year, p.death?.date?.year];
+  const text = normalizeText(parts.filter((x) => x !== undefined && x !== "").join(" "));
+  const sortKey = normalizeText(`${p.surname ?? ""} ${p.givenNames ?? ""}`);
+  return { id: p.id, text, sortKey };
+}
+
 export class PersonSearchIndex {
-  private readonly entries: Entry[];
+  private readonly entries = new Map<PersonId, Entry>();
 
   constructor(persons: Iterable<Person>) {
-    this.entries = [];
-    for (const p of persons) {
-      const parts = [p.givenNames, p.surname, p.birth?.date?.year, p.death?.date?.year];
-      const text = normalizeText(parts.filter((x) => x !== undefined && x !== "").join(" "));
-      const sortKey = normalizeText(`${p.surname ?? ""} ${p.givenNames ?? ""}`);
-      this.entries.push({ id: p.id, text, sortKey });
-    }
+    for (const p of persons) this.entries.set(p.id, toEntry(p));
   }
 
   get size(): number {
-    return this.entries.length;
+    return this.entries.size;
+  }
+
+  /**
+   * Einzelne Personen nachführen (Bearbeiten, M10): `put` ersetzt oder ergänzt, `remove` entfernt.
+   * Kostet nur so viel wie die berührten Personen, nicht einen neuen Index (50.000 Namen ≈ 220 ms).
+   */
+  update(put: Iterable<Person>, remove: Iterable<PersonId> = []): void {
+    for (const id of remove) this.entries.delete(id);
+    for (const p of put) this.entries.set(p.id, toEntry(p));
   }
 
   /** Beste Treffer (höchstens `limit`), sortiert nach Güte, dann nach Nachname und Vorname. */
@@ -57,7 +67,7 @@ export class PersonSearchIndex {
     const worse = (a: { hit: SearchHit; sortKey: string }, b: { hit: SearchHit; sortKey: string }) =>
       a.hit.score !== b.hit.score ? a.hit.score > b.hit.score : a.sortKey > b.sortKey;
 
-    for (const e of this.entries) {
+    for (const e of this.entries.values()) {
       let score = 0;
       for (const w of words) {
         const at = e.text.indexOf(w);

@@ -24,6 +24,17 @@ export const en: Record<MessageKey, string> = {
   "app.saveFailed": "Saving failed: {error}",
   "app.notSaved": " Not saved yet.",
 
+  // ---- Editing (step 3: session, undo/redo, saving) ----
+  "edit.undo": "Undo",
+  "edit.undo.title": "Undo the last change (Ctrl+Z)",
+  "edit.redo": "Redo",
+  "edit.redo.title": "Redo the undone change (Ctrl+Y)",
+  "edit.reject.nothing-to-undo": "Nothing to undo.",
+  "edit.reject.nothing-to-redo": "Nothing to redo.",
+  "edit.saveFailed": "Change could not be written to storage: {error} It only applies to this session.",
+  "edit.unsaved": "Changes are only in memory and will be lost when you close the page. Save first?",
+  "edit.unsaved.save": "Save now",
+
   // ---- Import dialog ----
   "import.title.open": "Open a family tree",
   "import.title.check": "Review import",

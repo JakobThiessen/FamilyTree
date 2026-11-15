@@ -5,6 +5,7 @@
   import { onDestroy, onMount } from "svelte";
   import { describeRelationship } from "../core";
   import type { FamilyGraph } from "../core";
+  import type { TreeChanges } from "../core/edit";
   import type { LayoutResult } from "../core/layout";
   import type { Person, PersonId, TreeData, ViewRequest } from "../core/types";
   import { TreeView, COLORS, sceneToSvg } from "../render";
@@ -159,6 +160,32 @@
     focusId = first;
     if (first) onFocusChange?.(first);
     await show();
+  }
+
+  /**
+   * Geänderte Baumdaten (Bearbeiten, Undo/Redo): Worker und Personentabelle nachführen und neu zeichnen, ohne
+   * die Kamera zu bewegen. Steht die Fokusperson nicht mehr im Baum, wird `fallbackId` (Nachbar) oder die erste
+   * Person Fokus; dann passt sich die Ansicht neu an.
+   */
+  export async function updateData(d: TreeData, changes?: TreeChanges, fallbackId?: PersonId) {
+    if (!client || !view) return;
+    persons = new Map<string, Person>(d.persons.map((p) => [p.id, p]));
+    view.setPersons(persons);
+    // Nur die Änderungen an den Worker: den ganzen Baum zu kopieren dauert bei 50.000 Personen ca. 500 ms.
+    if (changes) {
+      try {
+        await client.applyChanges(changes);
+      } catch {
+        await client.setData(d); // Worker-Stand passt nicht: ganzen Baum senden
+      }
+    } else await client.setData(d);
+    await client.reset(); // Worker rechnet neu; `last` bleibt, damit setResult die Kamera nicht zurücksetzt
+    if (!persons.has(focusId)) {
+      focusId = fallbackId && persons.has(fallbackId) ? fallbackId : (d.persons[0]?.id ?? "");
+      last = null;
+      onFocusChange?.(focusId);
+    }
+    if (focusId) await show();
   }
 
   /** Rolle der Person zur Fokusperson; „nicht verwandt“ zeigen wir nicht. */

@@ -2,8 +2,8 @@
   // Oberfläche: Kopfleiste mit Reitern und Suche, Zeichenfläche mit Filterpanel, rechts Personendetails, Import-Dialog.
   // Baumdaten mit $state.raw: kein Proxy (IndexedDB kann Proxys nicht speichern, D13).
   import { onMount } from "svelte";
-  import { FamilyGraph, serializeTreeData } from "../core";
-  import type { Person, PersonId, Source, TreeData } from "../core";
+  import { changesFromTouched, EditSession, FamilyGraph, PersonSearchIndex, serializeTreeData } from "../core";
+  import type { EditOp, Person, PersonId, SessionResult, Source, TreeData } from "../core";
   import { exportGedcom } from "../import/gedcomExport";
   import { TreeStore } from "../storage";
   import type { TreeMeta } from "../storage";
@@ -17,7 +17,7 @@
   import SearchBox from "./SearchBox.svelte";
   import TreeViewer from "./TreeViewer.svelte";
   import { i18n, setLang, t } from "./lang.svelte";
-  import { errorText } from "./messages";
+  import { editText, errorText } from "./messages";
   import { LANGS } from "./i18n";
   import type { Lang } from "./i18n";
   import { describePerson } from "./personInfo";
@@ -28,6 +28,16 @@
   let storageError = $state("");
 
   let data = $state.raw<TreeData | null>(null);
+  /** Zählt neu geöffnete Bäume: nur dann baut `{#key}` die Ansicht neu auf; Bearbeiten führt sie nach (`updateData`). */
+  let treeKey = $state(0);
+  // Bearbeiten (M10): die Sitzung hält Stand und Undo/Redo-Stapel; der Suchindex wird nachgeführt statt neu gebaut.
+  let session: EditSession | null = null;
+  let searchIndex = $state.raw(new PersonSearchIndex([]));
+  let indexRev = $state(0);
+  let canUndo = $state(false);
+  let canRedo = $state(false);
+  let unsavedHint = $state(false);
+  let editError = $state("");
   let treeName = $state("");
   let savedId = $state<string | null>(null);
   let focusId = $state<PersonId>("");
@@ -77,13 +87,95 @@
     }
   });
 
+  /** Neuer Baum (geöffnet oder durch eine Übernahme ersetzt): Sitzung, Suchindex und Ansicht von vorn. */
+  function setTree(d: TreeData) {
+    if (session) session.reset(d);
+    else session = new EditSession(d);
+    searchIndex = new PersonSearchIndex(d.persons);
+    canUndo = canRedo = false;
+    unsavedHint = false;
+    editError = "";
+    data = d;
+    treeKey++; // {#key treeKey} unten baut die Ansicht neu auf
+  }
+
   function showTree(d: TreeData, name: string, id: string | null) {
     focusId = "";
     startId = undefined;
     notice = "";
-    data = d; // {#key data} unten baut die Ansicht neu auf
+    setTree(d);
     treeName = name;
     savedId = id;
+  }
+
+  /** Eine Person in der Nachbarschaft von `id` (Partner, Eltern, Kinder) im alten Graphen, die im neuen Baum noch steht: Ersatzfokus nach dem Löschen. */
+  function neighborOf(old: FamilyGraph | null, id: PersonId, now: Map<PersonId, Person>): PersonId | undefined {
+    if (!old || !old.hasPerson(id)) return undefined;
+    return [...old.partners(id), ...old.parents(id), ...old.children(id)].find((x) => now.has(x));
+  }
+
+  /**
+   * Ergebnis eines Schritts (Ändern, Undo, Redo) übernehmen: Daten und Suchindex nachführen, Ansicht ohne
+   * Kamerasprung aktualisieren, in IndexedDB schreiben (nur wenn der Baum gespeichert ist).
+   */
+  async function afterStep(res: SessionResult) {
+    if (!res.ok) {
+      editError = editText(res.reject, i18n.lang);
+      return;
+    }
+    editError = "";
+    const oldGraph = graph;
+    const oldFocus = focusId;
+    const next = res.data;
+    // Schreiben zuerst anstoßen (die Transaktion entsteht synchron, so bleibt die Reihenfolge bei schnellen Schritten).
+    const changes = changesFromTouched(next, res.touched);
+    const write = store && savedId ? store.applyChanges(savedId, changes) : null;
+    data = next;
+    canUndo = session?.canUndo ?? false;
+    canRedo = session?.canRedo ?? false;
+    const now = persons; // abgeleitet, wird nach `data = next` neu gebildet
+    searchIndex.update(
+      res.touched.persons.map((id) => now.get(id)).filter((p): p is Person => p !== undefined),
+      res.touched.persons.filter((id) => !now.has(id)),
+    );
+    indexRev++;
+    if (!savedId) unsavedHint = true;
+    const fallback = oldFocus && !now.has(oldFocus) ? neighborOf(oldGraph, oldFocus, now) : undefined;
+    const view = viewer?.updateData(next, changes, fallback);
+    if (write) {
+      try {
+        await write;
+        void refresh();
+      } catch (e) {
+        storageError = t("edit.saveFailed", { error: errorText(e, i18n.lang) });
+      }
+    }
+    await view;
+  }
+
+  /** Eine Änderung anwenden (Formular und Knöpfe aus Schritt 4–6 rufen das auf). */
+  async function edit(op: EditOp): Promise<SessionResult> {
+    const res: SessionResult = session ? session.apply(op) : { ok: false, reject: { code: "edit.reject.no-tree" } };
+    await afterStep(res);
+    return res;
+  }
+  const undo = () => (session ? afterStep(session.undo()) : undefined);
+  const redo = () => (session ? afterStep(session.redo()) : undefined);
+
+  // Nur zur Entwicklung (Schritt 3 hat noch kein Formular): `__edit.apply({type: "...", ...})`, `__edit.undo()` in der Konsole.
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__edit = { apply: edit, undo, redo, session: () => session };
+
+  /** Strg+Z = Rückgängig, Strg+Y oder Strg+Umschalt+Z = Wiederholen; nicht in Eingabefeldern (dort gilt das Rückgängig des Feldes). */
+  function onKeyDown(e: KeyboardEvent) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || !data) return;
+    const el = e.target instanceof HTMLElement ? e.target : null;
+    if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+    if (document.querySelector("dialog[open]")) return;
+    const k = e.key.toLowerCase();
+    if (k === "z" && !e.shiftKey) void undo();
+    else if (k === "y" || (k === "z" && e.shiftKey)) void redo();
+    else return;
+    e.preventDefault();
   }
 
   async function saveCurrent() {
@@ -91,6 +183,8 @@
     try {
       const meta = await store.saveTree(treeName, data);
       savedId = meta.id;
+      unsavedHint = false;
+      session?.markSaved();
       await refresh();
     } catch (e) {
       storageError = t("app.saveFailed", { error: errorText(e, i18n.lang) });
@@ -121,7 +215,7 @@
       }
     }
     startId = res.rootId;
-    data = res.data; // {#key data} baut die Ansicht neu auf
+    setTree(res.data);
     notice = summary + (savedId ? "" : t("app.notSaved"));
   }
 
@@ -147,6 +241,7 @@
 </script>
 
 <svelte:window
+  onkeydown={onKeyDown}
   ondragover={(e) => { if (hasFiles(e)) { e.preventDefault(); dragging = true; } }}
   ondragleave={(e) => { if (!e.relatedTarget) dragging = false; }}
   ondrop={onDrop}
@@ -163,12 +258,14 @@
       {/each}
     </nav>
     <span class="grow"></span>
-    {#if data}<div class="search-slot"><SearchBox {persons} onPick={pick} /></div>{/if}
+    {#if data}<div class="search-slot"><SearchBox {persons} index={searchIndex} rev={indexRev} onPick={pick} /></div>{/if}
     <select class="lang" aria-label={t("app.lang.label")} title={t("app.lang.title")} value={i18n.lang} onchange={(e) => setLang(e.currentTarget.value as Lang)}>
       {#each LANGS as l (l)}<option value={l}>{l.toUpperCase()}</option>{/each}
     </select>
     <div class="actions">
     {#if data}
+      <button onclick={undo} disabled={!canUndo} title={t("edit.undo.title")}>{t("edit.undo")}</button>
+      <button onclick={redo} disabled={!canRedo} title={t("edit.redo.title")}>{t("edit.redo")}</button>
       {#if !savedId}<button onclick={saveCurrent} disabled={!store} title={t("app.save.title")}>{t("app.save")}</button>{/if}
       <button onclick={() => download(exportGedcom(data!), `${baseName()}.ged`, "text/plain;charset=utf-8")}>GEDCOM</button>
       <button onclick={() => download(serializeTreeData(data!), `${baseName()}.json`, "application/json")}>JSON</button>
@@ -182,14 +279,18 @@
   {#if notice}
     <p class="notice" role="status">{notice} <button class="link" onclick={() => (notice = "")}>{t("app.close")}</button></p>
   {/if}
+  {#if unsavedHint && data && !savedId}
+    <p class="notice" role="status">{t("edit.unsaved")} <button class="link" onclick={saveCurrent} disabled={!store}>{t("edit.unsaved.save")}</button> <button class="link" onclick={() => (unsavedHint = false)}>{t("app.close")}</button></p>
+  {/if}
+  {#if editError}<p class="notice bad" role="alert">{editError}</p>{/if}
   {#if storageError && data}<p class="notice bad" role="alert">{storageError}</p>{/if}
 
   <main id="main" tabindex="-1" class="body" class:with-panel={data && tab === "tree" && panelOpen}>
     <!-- Der Stammbaum bleibt beim Reiterwechsel erhalten (nur versteckt), damit Fokus und Kamera nicht verloren gehen. -->
     <div class="stage" class:hidden={tab !== "tree"}>
       {#if data}
-        <!-- {#key}: bei anderen Daten wird die Ansicht komplett neu aufgebaut -->
-        {#key data}<TreeViewer bind:this={viewer} {data} {graph} {startId} title={treeName} onFocusChange={(id) => (focusId = id)} />{/key}
+        <!-- {#key}: bei einem anderen Baum wird die Ansicht komplett neu aufgebaut; Änderungen laufen über viewer.updateData -->
+        {#key treeKey}<TreeViewer bind:this={viewer} {data} {graph} {startId} title={treeName} onFocusChange={(id) => (focusId = id)} />{/key}
       {:else}
         <p class="empty">{t("app.empty")}</p>
       {/if}

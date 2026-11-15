@@ -97,7 +97,7 @@ Reihenfolge (mit Nutzer abgestimmt): Backup, Export, DE/EN, Barrierefreiheit/Mob
 Abgestimmt (2026-11-15): Formular im Detailfenster, Verwandte per Knöpfe an der Fokusperson (Unions entstehen automatisch), Löschen nur die Person mit Folgenhinweis, Undo/Redo nur in der Sitzung, Sicherung durch sofortiges gezieltes Schreiben in IndexedDB plus Backup/Export (keine Änderungshistorie).
 - [x] Schritt 1: Änderungs-Kern `src/core/edit.ts` (`applyEdit` → `data`, `inverse`, `touched`; Zyklen, Doppel-Biologie, leere Unions) mit Tests
 - [x] Schritt 2: `TreeStore.applyChanges` (gezieltes Schreiben in einer Transaktion, Zähler, Index-Hilfsfelder); D13/D27 ergänzen
-- [ ] Schritt 3: Datenfluss in `App.svelte` (`$state.raw`), `LayoutClient.setData`, Undo/Redo (Strg+Z/Y), „erst speichern?“ bei ungespeichertem Baum; Messung mit 50.000 Personen
+- [x] Schritt 3: Datenfluss in `App.svelte` (`$state.raw`), `LayoutClient.setData`, Undo/Redo (Strg+Z/Y), „erst speichern?“ bei ungespeichertem Baum; Messung mit 50.000 Personen
 - [ ] Schritt 4: Person bearbeiten (Formular in `PersonDetails.svelte`: Name, Geschlecht, Geburt/Tod mit Datum, Ort, Lat/Lon, Status, Quelle, Notizen; Texte DE/EN)
 - [ ] Schritt 5: Verwandte hinzufügen (Elternteil, Partner, Kind, Geschwister; Partner-/Union-Auswahl; optional vorhandene Person verknüpfen)
 - [ ] Schritt 6: Person löschen mit Folgenhinweis und Undo
