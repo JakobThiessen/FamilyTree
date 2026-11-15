@@ -218,6 +218,8 @@ export const de = {
   "viewer.edges.proven": "belegt",
   "viewer.edges.assumed": "unbestätigt",
   "viewer.edges.adopted": "Adoption / Pflege",
+  "viewer.edges.up": "zu den Eltern (Fokus/Maus)",
+  "viewer.edges.down": "zu den Kindern (Fokus/Maus)",
   "viewer.fit": "Einpassen",
   "viewer.fit.title": "Ganze Ansicht einpassen",
   "viewer.zoomIn": "Hineinzoomen",

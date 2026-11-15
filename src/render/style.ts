@@ -18,6 +18,9 @@ export const COLORS = {
   text: "#e6e8f0",
   textDim: "#9aa3bf",
   edgeNeutral: "#6c7596",
+  /** hervorgehobene Linien: zu den Eltern / zu den Kindern der Fokus- bzw. überfahrenen Karte */
+  edgeUp: "#ffd166",
+  edgeDown: "#4dd0c8",
   focus: "#ffffff",
   focusGlow: "#4dd0c8",
   badge: "#2a3354",

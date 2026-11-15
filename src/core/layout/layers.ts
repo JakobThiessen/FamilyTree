@@ -20,8 +20,8 @@ export interface Grouping {
 }
 
 /**
- * Reihenfolge im Band: Wer die meisten Partnerschaften hat (Mehrfach-Ehen), steht links, danach seine
- * Partner in Ehe-Reihenfolge (`Union.order`), deren weitere Partner jeweils direkt dahinter.
+ * Reihenfolge im Band: Wer die meisten Partnerschaften hat (Mehrfach-Ehen), steht in der Mitte, links die
+ * erste Ehe, rechts die weiteren Partner in Ehe-Reihenfolge (`Union.order`), deren weitere Partner jeweils direkt dahinter.
  * Bei genau zwei Personen steht der Mann links.
  */
 export function orderBand(g: FamilyGraph, members: PersonId[]): PersonId[] {
@@ -48,6 +48,12 @@ export function orderBand(g: FamilyGraph, members: PersonId[]): PersonId[] {
   add(hub);
   for (const m of sorted) if (!seen.has(m)) result.push(m);
 
+  // Mehrfach-Ehen (D43): Hub steht in der Mitte, die erste Ehe links, die weiteren rechts. So stehen die Kinder
+  // einer Ehe unter ihrem Partner und die Linien der Ehen kreuzen sich nicht über dem Hub.
+  if (result.length >= 3 && count(hub) >= 2) {
+    const first = result[1] as PersonId;
+    return [first, hub, ...result.slice(2)];
+  }
   if (result.length === 2) {
     const [a, b] = result as [PersonId, PersonId];
     if (g.getPerson(b)?.sex === "M" && g.getPerson(a)?.sex !== "M") return [b, a];

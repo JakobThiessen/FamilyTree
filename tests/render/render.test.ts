@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { LayoutSession } from "../../src/core";
 import type { Person, TreeData, Union } from "../../src/core";
+import { edgeDirection } from "../../src/render/scene";
 import { Camera, GridIndex, sceneToSvg, xmlEscape, buildScene, badgeRect, lineColor, lifeSpan, initials, isUnknownPerson } from "../../src/render";
 
 const readTree = (file: string): TreeData => JSON.parse(readFileSync(file, "utf8")) as TreeData;
@@ -123,6 +124,19 @@ describe("Szene", () => {
     expect(carl.name).toBe("Carl Beispiel");
     expect(carl.color).toBe(lineColor("Beispiel"));
     expect(scene.focusKey).toBe("c");
+  });
+
+  it("Linien kennen ihre Eltern und Kinder: von einer Karte aus geht es nach oben oder unten", () => {
+    for (const mode of ["curved", "orthogonal"] as const) {
+      const sc = buildScene(result, persons(ps), { lineMode: mode });
+      const childEdges = sc.edges.filter((e) => e.kids && e.parents);
+      expect(childEdges.length).toBeGreaterThan(0);
+      for (const e of childEdges) {
+        for (const k of e.kids as string[]) expect(edgeDirection(e, k)).toBe("up");
+        for (const k of e.parents as string[]) expect(edgeDirection(e, k)).toBe("down");
+        expect(edgeDirection(e, "unbekannt")).toBeNull();
+      }
+    }
   });
 
   it("Standard sind S-Kurven: eine Kurve je Kind, senkrecht aus dem Anker und senkrecht ins Kind", () => {

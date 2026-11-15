@@ -395,6 +395,8 @@
         <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" /></svg>{t("viewer.edges.proven")}</li>
         <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" stroke-dasharray="6 4" /></svg>{t("viewer.edges.assumed")}</li>
         <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeNeutral} stroke-width="2" stroke-dasharray="2 4" /></svg>{t("viewer.edges.adopted")}</li>
+        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeUp} stroke-width="3" /></svg>{t("viewer.edges.up")}</li>
+        <li><svg width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke={COLORS.edgeDown} stroke-width="3" /></svg>{t("viewer.edges.down")}</li>
       </ul>
     {/if}
   </aside>

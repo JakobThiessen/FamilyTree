@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Geändert / Hinzugefügt (Mehrfach-Ehen und Linien-Hervorhebung, D43)
+- Band bei Mehrfach-Ehen: der Mann (Hub) steht in der Mitte, die erste Ehe links, weitere rechts (`orderBand`, vorher Hub links). Die Kinder einer Ehe stehen damit auf der Seite ihres Partners.
+- Linien der Fokuskarte sind hervorgehoben, bei Hover die der überfahrenen Karte (übrige blasser): gelb zu den Eltern, türkis zu den Kindern, Stil (gestrichelt/gepunktet) bleibt. `SceneEdge.parents`/`kids`, `edgeDirection()` in `src/render/scene.ts`; Legende „zu den Eltern / zu den Kindern“ DE/EN. Test 309 → 310.
+
 ### Hinzugefügt (M10 Schritt 7: Sicherungshinweis, D42)
 - `src/core/backupNotice.ts` (rein, getestet): Zustand `{count, dismissedAt}`, `recordChange`, `markBackedUp`, `dismissHint`, `shouldShowHint` (Schwelle `BACKUP_HINT_THRESHOLD` = 10), `parseBackupState`.
 - `App.svelte`: Zähler „n Änderungen seit der letzten Sicherung“ in der Kopfleiste (Ändern, Rückgängig, Wiederholen, Übernahme zählen); ab 10 ein schließbarer Hinweis (`role="status"`) mit Knopf „Jetzt als JSON sichern“, nach dem Schließen erst wieder nach 10 weiteren Änderungen. GEDCOM-/JSON-Export und „Alle sichern“ (nur wenn der Baum gespeichert ist) setzen zurück. `src/ui/backupStore.ts` legt den Zustand pro gespeichertem Baum im localStorage ab (überlebt Neuladen).

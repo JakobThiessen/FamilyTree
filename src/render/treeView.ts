@@ -13,6 +13,7 @@ import type { Person, PersonId } from "../core/types";
 import { Camera } from "./camera";
 import type { Rect } from "./camera";
 import { BADGE, badgeRect, buildScene } from "./scene";
+import { edgeDirection } from "./scene";
 import type { BadgeDirection, Scene, SceneCard, SceneEdge, SceneOptions } from "./scene";
 import { COLORS } from "./style";
 
@@ -304,9 +305,19 @@ export class TreeView {
   /** Linien werden nach Farbe/Stil gebündelt: ein Pfad und ein `stroke` je Gruppe statt je Linie. */
   private drawEdges(scene: Scene, ids: number[], k: number): void {
     const ctx = this.ctx;
+    // Hervorhebung: bei Hover die Linien der überfahrenen Karte (übrige blasser), sonst die der Fokuskarte.
+    const hovered = this.hover && !this.hover.badge ? this.hover.card.node.key : null;
+    const active = hovered ?? scene.focusKey;
+    const dim = hovered !== null;
+    const lit: { id: number; dir: "up" | "down" }[] = [];
     const groups = new Map<string, number[]>();
     for (const id of ids) {
       const e = scene.edges[id] as SceneEdge;
+      const dir = active ? edgeDirection(e, active) : null;
+      if (dir) {
+        lit.push({ id, dir });
+        continue;
+      }
       const key = `${e.color}|${e.style}|${e.ghost ? 1 : 0}|${e.width}`;
       const g = groups.get(key);
       if (g) g.push(id);
@@ -315,7 +326,7 @@ export class TreeView {
     for (const [key, list] of groups) {
       const sample = scene.edges[list[0] as number] as SceneEdge;
       ctx.strokeStyle = sample.color;
-      ctx.globalAlpha = sample.ghost ? 0.45 : 1;
+      ctx.globalAlpha = (sample.ghost ? 0.45 : 1) * (dim ? 0.4 : 1);
       ctx.lineWidth = Math.max(sample.width, 1 / k); // nie dünner als ein Pixel
       ctx.setLineDash(sample.style === "dashed" ? [8, 6] : sample.style === "dotted" ? [2, 5] : []);
       ctx.beginPath();
@@ -333,6 +344,32 @@ export class TreeView {
       }
       ctx.stroke();
       void key;
+    }
+    // Hervorgehobene Linien zuletzt: nach oben (Eltern) gelb, nach unten (Kinder) türkis, Stil bleibt erkennbar.
+    for (const dir of ["up", "down"] as const) {
+      const mine = lit.filter((l) => l.dir === dir);
+      if (mine.length === 0) continue;
+      ctx.strokeStyle = dir === "up" ? COLORS.edgeUp : COLORS.edgeDown;
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = Math.max(3.2, 1.5 / k);
+      for (const style of ["solid", "dashed", "dotted"] as const) {
+        const part = mine.filter((l) => (scene.edges[l.id] as SceneEdge).style === style);
+        if (part.length === 0) continue;
+        ctx.setLineDash(style === "dashed" ? [8, 6] : style === "dotted" ? [2, 5] : []);
+        ctx.beginPath();
+        for (const { id } of part) {
+          const e = scene.edges[id] as SceneEdge;
+          const p = e.points;
+          ctx.moveTo(p[0] as number, p[1] as number);
+          if (e.curve) {
+            if (k >= LOD_CURVE) ctx.bezierCurveTo(p[2] as number, p[3] as number, p[4] as number, p[5] as number, p[6] as number, p[7] as number);
+            else ctx.lineTo(p[6] as number, p[7] as number);
+          } else {
+            for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i] as number, p[i + 1] as number);
+          }
+        }
+        ctx.stroke();
+      }
     }
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;

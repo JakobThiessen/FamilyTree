@@ -49,6 +49,17 @@ export interface SceneEdge {
   width: number;
   /** Linie gehört zu einem Geisterknoten (blasser gezeichnet) */
   ghost: boolean;
+  /** Karten-Schlüssel der Eltern der Verbindung (nur Eltern-Kind-Linien); für die Hervorhebung */
+  parents?: string[];
+  /** Karten-Schlüssel der Kinder, zu denen die Linie führt (Stamm: alle Kinder der Verbindung) */
+  kids?: string[];
+}
+
+/** Richtung einer Linie von einer Karte aus: `up` führt zu ihren Eltern, `down` zu ihren Kindern. */
+export function edgeDirection(e: SceneEdge, cardKey: string): "up" | "down" | null {
+  if (e.kids?.includes(cardKey)) return "up";
+  if (e.parents?.includes(cardKey)) return "down";
+  return null;
 }
 
 export interface Scene {
@@ -202,6 +213,8 @@ function addCurvedEdges(result: LayoutResult, byKey: Map<string, SceneCard>, add
         color: card.color,
         width: 1.6,
         ghost: u.ghost || card.node.ghost,
+        parents: u.partnerKeys,
+        kids: [c.key],
       });
     }
   }
@@ -269,6 +282,8 @@ function addOrthogonalEdges(result: LayoutResult, byKey: Map<string, SceneCard>,
         color: COLORS.edgeNeutral,
         width: 1.5,
         ghost: u.ghost,
+        parents: u.partnerKeys,
+        kids: p.children.map((c) => c.card.node.key),
       });
       for (const c of p.children) {
         const cx = c.card.node.x;
@@ -279,6 +294,8 @@ function addOrthogonalEdges(result: LayoutResult, byKey: Map<string, SceneCard>,
           color: c.card.color,
           width: 1.5,
           ghost: u.ghost || c.card.node.ghost,
+          parents: u.partnerKeys,
+          kids: [c.card.node.key],
         });
       }
     }

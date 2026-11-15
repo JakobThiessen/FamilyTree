@@ -164,7 +164,8 @@ describe("Layout: Partnerbänder und Mehrfach-Ehen", () => {
   it("stellt Partner in Ehe-Reihenfolge in ein Band", () => {
     const r = layoutView(g, req("p_1", 0, 1, "family"));
     const band = r.bands.find((b) => b.nodeKeys.includes("p_1")) as { nodeKeys: string[]; layer: number };
-    expect(band.nodeKeys).toEqual(["p_1", "p_2", "p_3", "p_4"]);
+    // Mehrfach-Ehen (D43): Hub in der Mitte, erste Ehe links, weitere rechts in Ehe-Reihenfolge
+    expect(band.nodeKeys).toEqual(["p_2", "p_1", "p_3", "p_4"]);
     expect(band.layer).toBe(0);
     expectSound(g, r);
   });

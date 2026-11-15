@@ -220,6 +220,8 @@ export const en: Record<MessageKey, string> = {
   "viewer.edges.proven": "proven",
   "viewer.edges.assumed": "unconfirmed",
   "viewer.edges.adopted": "adoption / foster",
+  "viewer.edges.up": "to parents (focus/hover)",
+  "viewer.edges.down": "to children (focus/hover)",
   "viewer.fit": "Fit",
   "viewer.fit.title": "Fit the whole view",
   "viewer.zoomIn": "Zoom in",
