@@ -378,3 +378,55 @@ describe("Layout-Worker (Nachrichtenverarbeitung)", () => {
     expect(() => structuredClone(b)).not.toThrow();
   });
 });
+
+describe("Layout: keine Überkreuzung bei Geschwistern (D43)", () => {
+  const P = (id: string) => ({ id, givenNames: id, surname: "Beispiel", sex: "U" as const });
+  const U = (id: string, partnerIds: string[], kids: string[]) => ({
+    id, kind: "marriage" as const, partnerIds, children: kids.map((personId) => ({ personId, kind: "biological" as const })),
+  });
+  // Natalie (Fokus) und Jakob mit zwei Kindern; Jakobs Schwester Irina hat zwei Kinder, sein Bruder eins.
+  const ids = ["gp1", "gp2", "jakob", "irina", "andreas", "natalie", "becker", "tim", "emily", "isa", "dan", "alice", "andw", "n1", "n2"];
+  const data = {
+    version: 1 as const,
+    sources: [],
+    persons: ids.map(P),
+    unions: [
+      U("u1", ["gp1", "gp2"], ["irina", "jakob", "andreas"]),
+      U("u2", ["jakob", "natalie"], ["tim", "emily"]),
+      U("u3", ["irina", "becker"], ["isa", "dan"]),
+      U("u5", ["andreas", "andw"], ["alice"]),
+      U("u4", ["n1", "n2"], ["natalie"]),
+    ],
+  };
+
+  function crossings(g: FamilyGraph, focusId: string, mode: "direct" | "family" | "all"): string[] {
+    const r = layoutView(g, req(focusId, 2, 2, mode));
+    const byKey = new Map(r.nodes.map((n) => [n.key, n]));
+    const bad: string[] = [];
+    for (const u of r.unions) {
+      const ks = [...new Set(u.children.map((c) => byKey.get(c.key)).filter((n): n is NonNullable<typeof n> => !!n))];
+      if (ks.length < 2) continue;
+      const layer = (ks[0] as { layer: number }).layer;
+      const lo = Math.min(...ks.map((k) => k.x));
+      const hi = Math.max(...ks.map((k) => k.x));
+      if (r.nodes.some((n) => n.layer === layer && n.x > lo && n.x < hi && !ks.some((k) => k.bandId === n.bandId))) bad.push(u.key);
+    }
+    return bad;
+  }
+
+  it("Kinder einer Verbindung stehen nebeneinander, fremde Kinder nie dazwischen", () => {
+    const g = new FamilyGraph(data);
+    for (const focus of ["natalie", "jakob", "irina", "tim"]) {
+      for (const mode of ["direct", "family", "all"] as const) expect(crossings(g, focus, mode)).toEqual([]);
+    }
+  });
+
+  it("gilt auch für die Beispieldateien", () => {
+    for (const f of ["cousin-marriage.json", "migration.json", "multiple-marriages.json"]) {
+      const eg = load(f);
+      for (const p of eg.persons()) {
+        for (const mode of ["direct", "family"] as const) expect(crossings(eg, p.id, mode)).toEqual([]);
+      }
+    }
+  });
+});

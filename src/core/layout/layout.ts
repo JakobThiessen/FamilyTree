@@ -102,6 +102,73 @@ function packLayer(items: Occ[], gap: number): void {
   }
 }
 
+/**
+ * Keine Überkreuzung bei Geschwistern (D43): Stehen nach `packLayer` zwischen den Kindern einer Verbindung
+ * fremde Karten (z. B. die Kinder des Geschwisters ihres Elternteils), wandert diese Fremdgruppe samt ihren
+ * Geschwistern auf die näher liegende Seite. `packLayer` erhält die Reihenfolge, löst danach Überlappungen.
+ */
+function uncross(byLayer: Map<number, Occ[]>, unions: { children: { occ: Occ }[] }[], gap: number): void {
+  const groupsOf = new Map<Occ, Occ[][]>();
+  const groups: Occ[][] = [];
+  for (const u of unions) {
+    const members = [...new Set(u.children.map((c) => c.occ))];
+    if (members.length < 2) continue;
+    const layer = (members[0] as Occ).layer;
+    const same = members.filter((m) => m.layer === layer);
+    if (same.length < 2) continue;
+    groups.push(same);
+    for (const m of same) {
+      const list = groupsOf.get(m);
+      if (list) list.push(same);
+      else groupsOf.set(m, [same]);
+    }
+  }
+  if (groups.length === 0) return;
+  const budget = new Map<number, number>();
+  for (let pass = 0; pass < 4; pass++) {
+    let changed = false;
+    for (const G of groups) {
+      const layer = (G[0] as Occ).layer;
+      const items = byLayer.get(layer) as Occ[];
+      const inG = new Set(G);
+      const lo = Math.min(...G.map((o) => o.x));
+      const hi = Math.max(...G.map((o) => o.x));
+      // erster Eintrag mit x >= lo (items ist nach x sortiert)
+      let a = 0;
+      let b = items.length;
+      while (a < b) {
+        const mid = (a + b) >> 1;
+        if ((items[mid] as Occ).x < lo) a = mid + 1;
+        else b = mid;
+      }
+      const intruders: Occ[] = [];
+      for (let i = a; i < items.length && (items[i] as Occ).x <= hi; i++) {
+        const o = items[i] as Occ;
+        if (!inG.has(o)) intruders.push(o);
+      }
+      if (intruders.length === 0) continue;
+      if ((budget.get(layer) ?? 0) >= 200) continue;
+      budget.set(layer, (budget.get(layer) ?? 0) + 1);
+      // Fremdblock: die Eindringlinge samt allen Geschwistern ihrer Gruppen (ohne Mitglieder von G)
+      const block = new Set<Occ>();
+      for (const o of intruders) {
+        block.add(o);
+        for (const grp of groupsOf.get(o) ?? []) for (const m of grp) if (!inG.has(m)) block.add(m);
+      }
+      const gLeft = Math.min(...G.map((o) => o.x - o.width / 2));
+      const gRight = Math.max(...G.map((o) => o.x + o.width / 2));
+      const bLeft = Math.min(...[...block].map((o) => o.x - o.width / 2));
+      const bRight = Math.max(...[...block].map((o) => o.x + o.width / 2));
+      const goLeft = (bLeft + bRight) / 2 < (gLeft + gRight) / 2;
+      const shift = goLeft ? gLeft - gap - bRight : gRight + gap - bLeft;
+      for (const o of block) o.x += shift;
+      packLayer(items, gap);
+      changed = true;
+    }
+    if (!changed) break;
+  }
+}
+
 /** Mittelpunkt der nächsten freien Lücke zu `desired`; `taken` ist nach linker Kante sortiert. */
 function findSlot(taken: [number, number][], desired: number, width: number, gap: number): number {
   let best = desired;
@@ -195,6 +262,7 @@ export function layoutView(
     else byLayer.set(o.layer, [o]);
   }
   for (const list of byLayer.values()) packLayer(list, gap);
+  uncross(byLayer, built.unions, gap);
 
   // 3. Inkrementell: schon platzierte Bänder festhalten, neue in freie Lücken setzen
   const sameBand = (o: Occ): LayoutBand | undefined => {

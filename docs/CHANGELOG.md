@@ -4,6 +4,16 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M11 Anfang: Fotos aus dem GEDCOM-Import, D44/D45)
+- Datenmodell: `Person.media` (`MediaRef`: `file`, `title`, `format`, `primary`, `cutout`). GEDCOM-Import liest `OBJE` (flache MyHeritage-Form, 5.5-Form, Zeiger auf OBJE-Datensätze), der Export schreibt sie zurück; Re-Import verlustfrei.
+- `src/import/mediaMatch.ts`: `matchMedia` ordnet Verweise den im Browser gewählten Dateien zu (Pfadende, ohne Groß-/Kleinschreibung).
+- Speicher: IndexedDB-Version 2 mit Speicher `media` (Vorschauen), `TreeStore.saveMedia/loadMedia/countMedia`, mit dem Baum gelöscht. Backup enthält nur Verweise.
+- Oberfläche: Importdialog „Fotoordner wählen …“ (Ordnerauswahl, Fortschritt, Ergebnis), Vorschauen 400 px (`mediaThumbs.ts`), Galerie `MediaGallery.svelte` im Detailfenster mit Alternativtext. Texte DE/EN.
+- Tests 310 → 322. Im Browser mit erfundener GEDCOM und erzeugtem Bild geprüft (Import, Speichern, Neuladen, Anzeige).
+
+### Geändert (Layout: weniger Überkreuzungen bei Geschwistern, Nachtrag D43)
+- `uncross` in `src/core/layout/layout.ts`: Kinder einer Verbindung stehen nebeneinander, fremde Kinder (z. B. die eines Geschwisters des Elternteils) werden samt ihren Geschwistern auf die nähere Seite geschoben. Tests `Layout: keine Überkreuzung bei Geschwistern` (nachgebauter Fall und Beispieldateien).
+
 ### Geändert / Hinzugefügt (Mehrfach-Ehen und Linien-Hervorhebung, D43)
 - Band bei Mehrfach-Ehen: der Mann (Hub) steht in der Mitte, die erste Ehe links, weitere rechts (`orderBand`, vorher Hub links). Die Kinder einer Ehe stehen damit auf der Seite ihres Partners.
 - Linien der Fokuskarte sind hervorgehoben, bei Hover die der überfahrenen Karte (übrige blasser): gelb zu den Eltern, türkis zu den Kindern, Stil (gestrichelt/gepunktet) bleibt. `SceneEdge.parents`/`kids`, `edgeDirection()` in `src/render/scene.ts`; Legende „zu den Eltern / zu den Kindern“ DE/EN. Test 309 → 310.
