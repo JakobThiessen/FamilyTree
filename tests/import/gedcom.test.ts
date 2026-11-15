@@ -298,3 +298,46 @@ describe("JSON-Export und Dateierkennung", () => {
     expect(noExt.data.unions).toHaveLength(4);
   });
 });
+
+describe("Medien (OBJE, D44)", () => {
+  const wrapM = (body: string) => `0 HEAD\n1 GEDC\n2 VERS 5.5.1\n${body}\n0 TRLR`;
+
+  it("liest die flache Form (MyHeritage) mit Titel, Format, Hauptbild und Ausschnitt", () => {
+    const r = importGedcom(
+      wrapM(`0 @I1@ INDI\n1 NAME A /X/\n1 OBJE\n2 FORM JPG\n2 TITL Ein Foto\n2 FILE Fotos\\a.jpg\n2 _PRIM Y\n1 OBJE\n2 FORM jpg\n2 FILE Fotos/b.jpg\n2 _CUTOUT Y`),
+    );
+    expect(r.data.persons[0]?.media).toEqual([
+      { file: "Fotos/a.jpg", title: "Ein Foto", format: "jpg", primary: true },
+      { file: "Fotos/b.jpg", format: "jpg", cutout: true },
+    ]);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it("liest die GEDCOM-5.5-Form und Verweise auf OBJE-Datensätze", () => {
+    const r = importGedcom(
+      wrapM(`0 @I1@ INDI\n1 OBJE\n2 FILE x.png\n3 FORM png\n3 TITL Titel\n1 OBJE @M1@\n1 OBJE @M9@\n0 @M1@ OBJE\n1 FILE y.jpg\n2 FORM jpg`),
+    );
+    expect(r.data.persons[0]?.media).toEqual([
+      { file: "x.png", title: "Titel", format: "png" },
+      { file: "y.jpg", format: "jpg" },
+    ]);
+    expect(r.warnings.map((w) => w.code)).toEqual(["media-missing-record"]);
+  });
+
+  it("überspringt OBJE ohne Datei und doppelte Dateien", () => {
+    const r = importGedcom(wrapM(`0 @I1@ INDI\n1 OBJE\n2 TITL nur Titel\n1 OBJE\n2 FILE a.jpg\n1 OBJE\n2 FILE a.jpg`));
+    expect(r.data.persons[0]?.media).toEqual([{ file: "a.jpg" }]);
+    expect(r.warnings.map((w) => w.code)).toEqual(["media-no-file"]);
+  });
+
+  it("Export und Re-Import erhalten die Medien", () => {
+    const data: TreeData = {
+      version: 1,
+      persons: [{ id: "p_1", sex: "F", givenNames: "Erika", surname: "Muster", media: [{ file: "bilder/erika.jpg", title: "Erika 1950", format: "jpg", primary: true, cutout: true }, { file: "z.png" }] }],
+      unions: [],
+      sources: [],
+    };
+    const back = importGedcom(exportGedcom(data));
+    expect(back.data.persons[0]?.media).toEqual(data.persons[0]?.media);
+  });
+});

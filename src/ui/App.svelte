@@ -23,6 +23,8 @@
   import type { Lang } from "./i18n";
   import { describePerson } from "./personInfo";
   import { loadBackupState, saveBackupState } from "./backupStore";
+  import { storeLookup } from "./mediaLookup";
+  import type { MediaLookup } from "./mediaLookup";
 
   // Speicher (IndexedDB). Wird beim Start geöffnet; fehlt IndexedDB, läuft die App ohne Speicherung.
   let store = $state.raw<TreeStore | null>(null);
@@ -103,7 +105,11 @@
     treeKey++; // {#key treeKey} unten baut die Ansicht neu auf
   }
 
-  function showTree(d: TreeData, name: string, id: string | null) {
+  /** Vorschaubilder des angezeigten Baums (M11, D45); `null` = keine geladen */
+  let media = $state.raw<MediaLookup | null>(null);
+
+  function showTree(d: TreeData, name: string, id: string | null, lookup: MediaLookup | null = null) {
+    media = lookup ?? (store && id ? storeLookup(store, id) : null);
     focusId = "";
     startId = undefined;
     notice = "";
@@ -323,7 +329,7 @@
     {/if}
     {#if data && tab === "tree" && panelOpen}
       <aside aria-label={t("app.details")}>
-        <div class="details"><PersonDetails {info} {data} index={searchIndex} rev={indexRev} {persons} sources={data?.sources ?? []} onPick={pick} onEdit={edit} /></div>
+        <div class="details"><PersonDetails {info} {data} index={searchIndex} rev={indexRev} {persons} sources={data?.sources ?? []} {media} onPick={pick} onEdit={edit} /></div>
       </aside>
     {/if}
   </main>

@@ -14,6 +14,7 @@ import type {
   Citation,
   ExternalRef,
   LifeEvent,
+  MediaRef,
   Person,
   Place,
   Sex,
@@ -70,6 +71,7 @@ class Importer {
   private sourceByXref = new Map<string, Source>();
   private sourceByTitle = new Map<string, Source>();
   private notesByXref = new Map<string, string>();
+  private objeByXref = new Map<string, GedcomNode>();
   private unionByXref = new Map<string, Union>();
 
   warn(code: string, params: Record<string, string | number>, message: string, node?: GedcomNode): void {
@@ -79,6 +81,7 @@ class Importer {
   run(records: GedcomNode[]): void {
     // Erst alle Zielobjekte anlegen, damit Zeiger in beliebiger Reihenfolge aufgelöst werden.
     for (const r of records) if (r.tag === "NOTE" && r.xref) this.notesByXref.set(r.xref, r.value);
+    for (const r of records) if (r.tag === "OBJE" && r.xref) this.objeByXref.set(r.xref, r);
     for (const r of records) if (r.tag === "SOUR" && r.xref) this.addSourceRecord(r);
     for (const r of records) if (r.tag === "INDI") this.addPerson(r);
     for (const r of records) if (r.tag === "FAM") this.addUnion(r);
@@ -179,6 +182,46 @@ class Importer {
     return n.value.trim() || undefined;
   }
 
+  // ---- Medien ----
+
+  /**
+   * OBJE-Verweise einer Person (D44). Zwei Schreibweisen: GEDCOM 5.5 (`1 OBJE` / `2 FILE` / `3 FORM`)
+   * und die flache Form, die z. B. MyHeritage schreibt (`2 FORM`, `2 TITL`, `2 FILE` auf einer Ebene).
+   * Auch `1 OBJE @M1@` auf einen Datensatz `0 @M1@ OBJE` wird aufgelöst. Ohne `FILE` wird übersprungen.
+   */
+  private media(indi: GedcomNode): MediaRef[] {
+    const result: MediaRef[] = [];
+    for (const o of childrenOf(indi, "OBJE")) {
+      const ptr = pointer(o.value);
+      let node: GedcomNode | undefined = o;
+      if (ptr) {
+        node = this.objeByXref.get(ptr);
+        if (!node) {
+          this.warn("media-missing-record", { ptr }, `Medium @${ptr}@ nicht gefunden.`, o);
+          continue;
+        }
+      }
+      for (const fileNode of childrenOf(node, "FILE")) {
+        const file = fileNode.value.trim().replace(/\\/g, "/");
+        if (!file) {
+          this.warn("media-no-file", {}, "OBJE ohne Dateiangabe übersprungen.", fileNode);
+          continue;
+        }
+        if (result.some((m) => m.file === file)) continue;
+        const m: MediaRef = { file };
+        const title = childValue(fileNode, "TITL") ?? childValue(node, "TITL");
+        if (title?.trim()) m.title = title.trim();
+        const format = (childValue(fileNode, "FORM") ?? childValue(node, "FORM"))?.trim().toLowerCase();
+        if (format) m.format = format;
+        if (childValue(node, "_PRIM")?.toUpperCase() === "Y") m.primary = true;
+        if (childValue(node, "_CUTOUT")?.toUpperCase() === "Y") m.cutout = true;
+        result.push(m);
+      }
+      if (!childrenOf(node, "FILE").length) this.warn("media-no-file", {}, "OBJE ohne Dateiangabe übersprungen.", o);
+    }
+    return result;
+  }
+
   // ---- Personen ----
 
   private addPerson(r: GedcomNode): void {
@@ -208,6 +251,8 @@ class Importer {
       if (t) notes.push(t);
     }
     if (notes.length) person.notes = notes;
+    const media = this.media(r);
+    if (media.length) person.media = media;
 
     const birt = child(r, "BIRT");
     if (birt) person.birth = this.event(birt);

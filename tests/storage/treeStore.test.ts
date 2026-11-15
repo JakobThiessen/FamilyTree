@@ -303,3 +303,31 @@ describe("Gezieltes Schreiben (applyChanges, M10, D38)", () => {
     expect((await store.getTree(meta.id))?.personCount).toBe(data.persons.length);
   });
 });
+
+describe("Medien (D45)", () => {
+  const rec = (file: string) => ({ file, thumb: new Blob([file]), width: 10, height: 20, origWidth: 100, origHeight: 200 });
+
+  it("speichert und lädt Vorschauen je Baum und löscht sie mit dem Baum", async () => {
+    const a = await store.saveTree("A", chain(1));
+    const b = await store.saveTree("B", chain(1));
+    await store.saveMedia(a.id, [rec("Fotos/1.jpg"), rec("Fotos/2.jpg")]);
+    await store.saveMedia(b.id, [rec("Fotos/1.jpg")]);
+    expect(await store.countMedia(a.id)).toBe(2);
+    expect((await store.loadMedia(a.id, "Fotos/2.jpg"))?.origHeight).toBe(200);
+    expect(await store.loadMedia(b.id, "Fotos/2.jpg")).toBeUndefined();
+    await store.deleteTree(a.id);
+    expect(await store.countMedia(a.id)).toBe(0);
+    expect(await store.countMedia(b.id)).toBe(1);
+  });
+
+  it("Backup enthält nur Verweise, keine Bilder", async () => {
+    const data = chain(1);
+    data.persons[0]!.media = [{ file: "Fotos/1.jpg", primary: true }];
+    const meta = await store.saveTree("A", data);
+    await store.saveMedia(meta.id, [rec("Fotos/1.jpg")]);
+    const text = serializeBackup(await store.exportAll());
+    expect(text).toContain("Fotos/1.jpg");
+    expect(text.length).toBeLessThan(2000);
+    expect(parseBackup(text)[0]!.data.persons[0]!.media).toEqual([{ file: "Fotos/1.jpg", primary: true }]);
+  });
+});

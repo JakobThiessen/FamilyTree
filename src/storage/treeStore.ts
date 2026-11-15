@@ -6,7 +6,7 @@
 import type { Citation, Person, PersonId, Source, SourceId, TreeChanges, TreeData, Union } from "../core";
 import type { BackupTree } from "../import/backup";
 import { openTreeDb, personKey } from "./schema";
-import type { Db, TreeMeta } from "./schema";
+import type { Db, MediaRecord, TreeMeta } from "./schema";
 
 /** Tiefe nach oben (Vorfahren) und unten (Nachkommen) für `loadNeighborhood`. */
 export interface NeighborhoodOptions {
@@ -244,15 +244,37 @@ export class TreeStore {
 
   /** Löscht den Baum samt allen Personen, Unions und Quellen. */
   async deleteTree(treeId: string): Promise<void> {
-    const tx = this.db.transaction(["trees", "persons", "unions", "sources"], "readwrite");
+    const tx = this.db.transaction(["trees", "persons", "unions", "sources", "media"], "readwrite");
     const range = treeRange(treeId);
     await Promise.all([
+      tx.objectStore("media").delete(range),
       tx.objectStore("trees").delete(treeId),
       tx.objectStore("persons").delete(range),
       tx.objectStore("unions").delete(range),
       tx.objectStore("sources").delete(range),
       tx.done,
     ]);
+  }
+
+  // ---------- Medien (M11, D45) ----------
+
+  /** Speichert Vorschaubilder zu einem Baum (überschreibt gleiche `file`). */
+  async saveMedia(treeId: string, items: Omit<MediaRecord, "treeId">[]): Promise<void> {
+    const tx = this.db.transaction("media", "readwrite");
+    await Promise.all([...items.map((m) => tx.store.put({ ...m, treeId })), tx.done]);
+  }
+
+  /** Vorschau zu einer Mediendatei, oder `undefined`. */
+  async loadMedia(treeId: string, file: string): Promise<Omit<MediaRecord, "treeId"> | undefined> {
+    const rec = await this.db.get("media", [treeId, file]);
+    if (!rec) return undefined;
+    const { treeId: _t, ...rest } = rec;
+    return rest;
+  }
+
+  /** Anzahl gespeicherter Vorschauen eines Baums. */
+  async countMedia(treeId: string): Promise<number> {
+    return this.db.countFromIndex("media", "byTree", treeId);
   }
 
   // ---------- Backup (M9, D32) ----------

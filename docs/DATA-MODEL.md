@@ -21,6 +21,10 @@ Umgesetzt in `src/core/types.ts`.
 | Unbekannter Elternteil | Union mit nur einem Partner |
 | Unsichere Verbindung | `status: "assumed"` an Union oder Kind-Verknüpfung |
 
+## Medien
+
+`Person.media` ist eine Liste von `MediaRef` (`file`, `title`, `format`, `primary`, `cutout`). Der Baum enthält nur Verweise (Pfad wie in der GEDCOM), die Bilddateien liegen beim Nutzer, Vorschauen in IndexedDB (D44, D45).
+
 ## Unscharfe Daten
 
 ```ts

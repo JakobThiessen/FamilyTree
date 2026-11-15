@@ -12,6 +12,8 @@
   import { buildRelative, deleteConsequences, emptyRelativeForm, unionChoices } from "./relativeForm";
   import type { RelativeErrors, RelativeForm } from "./relativeForm";
   import type { PersonInfo, RelativeRef } from "./personInfo";
+  import MediaGallery from "./MediaGallery.svelte";
+  import type { MediaLookup } from "./mediaLookup";
 
   let {
     info,
@@ -20,6 +22,7 @@
     rev,
     persons,
     sources,
+    media,
     onPick,
     onEdit,
   }: {
@@ -30,6 +33,8 @@
     rev: number;
     persons: ReadonlyMap<PersonId, Person>;
     sources: readonly Source[];
+    /** Vorschaubilder des Baums (D45); `null` = keine geladen */
+    media: MediaLookup | null;
     onPick: (id: PersonId) => void;
     onEdit: (op: EditOp) => Promise<SessionResult>;
   } = $props();
@@ -502,6 +507,10 @@
         {/if}
       </section>
     {/each}
+
+    {#if persons.get(info.id)?.media?.length}
+      <MediaGallery refs={persons.get(info.id)?.media ?? []} name={info.name} lookup={media} />
+    {/if}
 
     {#if info.notes.length}
       <section>

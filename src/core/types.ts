@@ -55,6 +55,22 @@ export interface ExternalRef {
   id: string;
 }
 
+/**
+ * Verweis auf eine Mediendatei (Foto) einer Person (D44). Die Datei selbst steckt nicht im Baum,
+ * nur der Pfad, so wie ihn die Quelle (GEDCOM `FILE`) nennt, mit `/` als Trenner.
+ */
+export interface MediaRef {
+  /** Pfad oder Dateiname wie in der Quelle, z. B. "Fotos/opa.jpg" */
+  file: string;
+  title?: string;
+  /** Dateiformat in Kleinschreibung, z. B. "jpg" */
+  format?: string;
+  /** Hauptbild der Person (GEDCOM `_PRIM Y`) */
+  primary?: boolean;
+  /** Das Bild ist ein Ausschnitt aus einem größeren Foto (GEDCOM `_CUTOUT Y`) */
+  cutout?: boolean;
+}
+
 export type Sex = "M" | "F" | "U";
 
 export interface Person {
@@ -65,6 +81,8 @@ export interface Person {
   birth?: LifeEvent;
   death?: LifeEvent;
   notes?: string[];
+  /** Fotos und andere Medien (D44) */
+  media?: MediaRef[];
   externalRefs?: ExternalRef[];
   status?: Status;
 }

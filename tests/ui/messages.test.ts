@@ -59,7 +59,7 @@ describe("GEDCOM-Hinweise", () => {
 
   it("kennt jeder Code des Imports (Quelltext-Abgleich)", () => {
     // Jeder in den Quelldateien verwendete Code hat Schlüssel in beiden Sprachen (Parität prüft i18n.test.ts)
-    const used = ["source-missing", "date-unreadable", "note-missing", "indi-no-id", "indi-duplicate", "fam-no-id", "fam-duplicate", "fam-unknown-person", "fam-unknown-child", "fam-empty", "famc-missing-chil", "head-missing", "line-unreadable", "level-orphan"];
+    const used = ["source-missing", "date-unreadable", "note-missing", "indi-no-id", "indi-duplicate", "fam-no-id", "fam-duplicate", "fam-unknown-person", "fam-unknown-child", "fam-empty", "famc-missing-chil", "head-missing", "line-unreadable", "level-orphan", "media-missing-record", "media-no-file"];
     for (const c of used) expect(de, c).toHaveProperty(key("warn", c));
   });
 });

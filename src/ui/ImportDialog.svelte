@@ -9,6 +9,10 @@
   import { fmt, i18n, t, tn } from "./lang.svelte";
   import { errorText, issueText, warningText } from "./messages";
   import { importFileInWorker } from "../workers/importClient";
+  import { matchMedia } from "../import/mediaMatch";
+  import { isImageFile, makeThumb } from "./mediaThumbs";
+  import { memoryLookup, storeLookup } from "./mediaLookup";
+  import type { MediaLookup, MediaThumb } from "./mediaLookup";
   import type { TreeMeta, TreeStore } from "../storage";
 
   let {
@@ -29,7 +33,7 @@
     /** Nur schließbar, wenn schon ein Baum angezeigt wird */
     canClose: boolean;
     /** Baum anzeigen; `savedId` ist gesetzt, wenn er schon gespeichert ist. */
-    onShow: (data: TreeData, name: string, savedId: string | null) => void;
+    onShow: (data: TreeData, name: string, savedId: string | null, media: MediaLookup | null) => void;
     /** Die Liste der gespeicherten Bäume hat sich geändert. */
     onSaved: () => void | Promise<void>;
     /** Ein Backup aller gespeicherten Bäume wurde heruntergeladen. */
@@ -44,6 +48,49 @@
   let saveName = $state("");
   let issues = $state<{ code: string; message: string; params?: Record<string, string | number> }[]>([]);
   let info = $state("");
+
+  // Fotos (M11, D45): Verweise aus der Datei, vom Nutzer gewählter Ordner, erzeugte Vorschauen
+  let thumbs = $state.raw(new Map<string, MediaThumb>());
+  let mediaRefs = $state.raw<string[]>([]);
+  let mediaProgress = $state<{ done: number; total: number } | null>(null);
+  let mediaResult = $state<{ found: number; missing: number; ambiguous: number; failed: number } | null>(null);
+
+  function resetMedia(r: ImportResult | null) {
+    thumbs = new Map();
+    mediaProgress = null;
+    mediaResult = null;
+    mediaRefs = r ? [...new Set(r.data.persons.flatMap((p) => (p.media ?? []).map((m) => m.file)))] : [];
+  }
+
+  /** Fotoordner gewählt: Dateien zuordnen und Vorschauen erzeugen (vier gleichzeitig, bleibt bedienbar). */
+  async function pickPhotos(files: FileList | null) {
+    if (!files || !mediaRefs.length) return;
+    const list = [...files].filter((f) => isImageFile(f.name));
+    const byPath = new Map(list.map((f) => [f.webkitRelativePath || f.name, f]));
+    const m = matchMedia(mediaRefs, [...byPath.keys()]);
+    const todo = [...m.matched];
+    const out = new Map<string, MediaThumb>();
+    let failed = 0;
+    let done = 0;
+    mediaResult = null;
+    mediaProgress = { done, total: todo.length };
+    let next = 0;
+    const worker = async () => {
+      while (next < todo.length) {
+        const [ref, path] = todo[next++]!;
+        try {
+          out.set(ref, await makeThumb(byPath.get(path)!));
+        } catch {
+          failed++;
+        }
+        mediaProgress = { done: ++done, total: todo.length };
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    thumbs = out;
+    mediaProgress = null;
+    mediaResult = { found: out.size, missing: m.missing.length, ambiguous: m.ambiguous.length, failed };
+  }
 
   export function open() {
     if (!dialog.open) dialog.showModal();
@@ -64,6 +111,7 @@
       fileName = file.name;
       saveName = file.name.replace(/\.[^.]+$/, "") || t("import.defaultName");
       issues = new FamilyGraph(r.data).validate().map((i) => ({ code: i.code, message: i.message, params: i.params }));
+      resetMedia(r);
       result = r;
     } catch (e) {
       error = errorText(e, i18n.lang);
@@ -76,7 +124,7 @@
 
   function showUnsaved() {
     if (!result) return;
-    onShow(result.data, fileName, null);
+    onShow(result.data, fileName, null, thumbs.size ? memoryLookup(thumbs) : null);
     reset();
   }
 
@@ -85,8 +133,9 @@
     busy = true;
     try {
       const meta = await store.saveTree(saveName.trim() || fileName, result.data);
+      if (thumbs.size) await store.saveMedia(meta.id, [...thumbs].map(([file, th]) => ({ file, ...th })));
       await onSaved();
-      onShow(result.data, meta.name, meta.id);
+      onShow(result.data, meta.name, meta.id, store ? storeLookup(store, meta.id) : null);
       reset();
     } catch (e) {
       error = t("import.saveFailed", { error: errText(e) });
@@ -97,6 +146,7 @@
 
   function reset() {
     result = null;
+    resetMedia(null);
     error = "";
     dialog.close();
   }
@@ -106,7 +156,7 @@
     busy = true;
     error = "";
     try {
-      onShow(await store.loadTree(tree.id), tree.name, tree.id);
+      onShow(await store.loadTree(tree.id), tree.name, tree.id, storeLookup(store, tree.id));
       dialog.close();
     } catch (e) {
       error = errText(e);
@@ -203,6 +253,19 @@
       </details>
     {/if}
 
+    {#if mediaRefs.length}
+      <section class="photos">
+        <h3>{t("import.media.title")}</h3>
+        <p>{t("import.media.refs", { n: mediaRefs.length })} <small>{t("import.media.hint")}</small></p>
+        <label class="button" class:disabled={busy || !!mediaProgress}>
+          {t("import.media.pick")}
+          <input type="file" multiple webkitdirectory disabled={busy || !!mediaProgress} onchange={(e) => { pickPhotos(e.currentTarget.files); e.currentTarget.value = ""; }} />
+        </label>
+        {#if mediaProgress}<p role="status">{t("import.media.progress", mediaProgress)}</p>{/if}
+        {#if mediaResult}<p class="ok" role="status">{t("import.media.result", mediaResult)}</p>{/if}
+      </section>
+    {/if}
+
     <label class="name">
       {t("import.saveName")}
       <input bind:value={saveName} disabled={!store} />
@@ -266,6 +329,7 @@
   .trees li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.4rem 0; border-top: 1px solid var(--line); }
   .actions { display: flex; gap: 0.4rem; }
   .list { max-height: 14rem; overflow: auto; margin: 0.3rem 0; padding-left: 1.2rem; font-size: 0.85rem; }
+  .photos h3 { margin-top: 1rem; }
   .name { display: block; margin-top: 1rem; }
   .name input { display: block; width: 100%; box-sizing: border-box; margin-top: 0.2rem; }
   footer { display: flex; gap: 0.5rem; margin-top: 1rem; }

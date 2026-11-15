@@ -102,6 +102,15 @@ class Exporter {
     if (p.birth) this.event("BIRT", p.birth);
     if (p.death) this.event("DEAT", p.death);
     for (const note of p.notes ?? []) pushValue(this.out, 1, "NOTE", note);
+    for (const m of p.media ?? []) {
+      // Flache Form wie bei MyHeritage; der Import liest sie und die 5.5-Form (D44).
+      this.out.push("1 OBJE");
+      if (m.format) pushValue(this.out, 2, "FORM", m.format);
+      if (m.title) pushValue(this.out, 2, "TITL", m.title);
+      pushValue(this.out, 2, "FILE", m.file);
+      if (m.primary) this.out.push("2 _PRIM Y");
+      if (m.cutout) this.out.push("2 _CUTOUT Y");
+    }
     for (const u of famc) {
       this.out.push(`1 FAMC @${this.unionX.get(u.id)}@`);
       const kind = u.children.find((c) => c.personId === p.id)?.kind;

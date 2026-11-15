@@ -104,12 +104,12 @@ Abgestimmt (2026-11-15): Formular im Detailfenster, Verwandte per Knöpfe an der
 - [x] Schritt 7: Sicherungshinweis („n Änderungen seit letztem Backup“)
 - Später (eigener Meilenstein): Dubletten echt zusammenführen, Orte per Wikidata beim Eingeben, Fächerdiagramm, PWA
 
-## M11 – Bilder und Medien ⬜ (später, Zeitpunkt offen)
+## M11 – Bilder und Medien 🟨 (Anfang fertig: Import, Speicherung, Detailfenster; Rest offen)
 Anlass: GEDCOM-Exporte (z. B. MyHeritage) enthalten Medienverweise (`OBJE`/`FILE`) auf Fotos; der Import ignoriert sie bisher, das Datenmodell hat kein Feld dafür. Reihenfolge und Umfang beim Start mit dem Nutzer abstimmen.
-- [ ] Datenmodell: Medien an Person (und Ereignis), Format-Version und `TreeData`-Austausch erweitern (D-Eintrag)
-- [ ] GEDCOM-Import/-Export: `OBJE`-Verweise (Datei, Titel, Format) lesen und schreiben; relative und absolute Pfade, fehlende Dateien als Hinweis
-- [ ] Zugriff im Browser: Nutzer wählt den Fotoordner (oder Dateien), Zuordnung über Dateinamen; Bilder in IndexedDB und im Backup (Größe beachten)
-- [ ] Anzeige: Vorschaubild und Galerie im Detailfenster, Alternativtext (Barrierefreiheit); Zugriff nur lokal, nichts geht ins Netz
+- [x] Datenmodell: Medien an Person (Ereignis später), `TreeData` bleibt Version 1 (D44)
+- [x] GEDCOM-Import/-Export: `OBJE`-Verweise (Datei, Titel, Format) lesen und schreiben; relative und absolute Pfade, fehlende Dateien als Hinweis (D44, D45)
+- [x] Zugriff im Browser: Ordnerauswahl im Importdialog, Zuordnung über Pfadende, Vorschauen in IndexedDB, Backup nur mit Verweisen (D45). Offen: Bilder nachträglich an gespeicherten Baum anbinden
+- [x] Anzeige: Hauptbild und Galerie im Detailfenster, Alternativtext; lokal (D45). Offen: Avatar auf der Karte, Vollbild, Bearbeiten (Foto hinzufügen/entfernen)
 - Hinweis: Die echten Fotos liegen unter `imports/` und werden nicht eingecheckt; Beispiele nur mit erfundenen Bildern.
 
 ## Offene Fragen
