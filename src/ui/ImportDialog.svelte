@@ -19,6 +19,7 @@
     canClose,
     onShow,
     onSaved,
+    onBackup,
   }: {
     store: TreeStore | null;
     saved: TreeMeta[];
@@ -31,6 +32,8 @@
     onShow: (data: TreeData, name: string, savedId: string | null) => void;
     /** Die Liste der gespeicherten Bäume hat sich geändert. */
     onSaved: () => void | Promise<void>;
+    /** Ein Backup aller gespeicherten Bäume wurde heruntergeladen. */
+    onBackup?: () => void;
   } = $props();
 
   let dialog: HTMLDialogElement;
@@ -126,6 +129,7 @@
       a.click();
       URL.revokeObjectURL(url);
       info = tn("import.backupDone", trees.length);
+      onBackup?.();
     } catch (e) {
       error = t("import.backupFailed", { error: errText(e) });
     } finally {

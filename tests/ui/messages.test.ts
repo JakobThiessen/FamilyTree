@@ -1,6 +1,8 @@
 // Meldungen des Kerns als Code + Parameter (D37): die UI übersetzt, der deutsche Text bleibt Rückfall.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { FamilyGraph, parseTreeData, TreeFormatError } from "../../src/core";
+import { applyEdit, FamilyGraph, parseTreeData, TreeFormatError } from "../../src/core";
 import type { TreeData } from "../../src/core";
 import { importGedcom, parseBackup } from "../../src/import";
 import { adoptBatch, ProviderError } from "../../src/providers";
@@ -8,7 +10,7 @@ import { findDuplicates } from "../../src/core/duplicates";
 import { requestJson } from "../../src/providers/http";
 import { de } from "../../src/ui/locales/de";
 import { translate } from "../../src/ui/i18n";
-import { disclosureText, errorText, issueText, reasonText, warningText } from "../../src/ui/messages";
+import { disclosureText, editText, errorText, issueText, reasonText, warningText } from "../../src/ui/messages";
 import { CodedError } from "../../src/workers/workerError";
 
 const key = (prefix: string, code: string | undefined) => `${prefix}.${code}` as keyof typeof de;
@@ -168,6 +170,28 @@ describe("Online-Quellen", () => {
     const en1 = adoptBatch(base, batch, { lang: "en" });
     expect(de1.data.persons[0]!.notes![0]).toContain("Übernommen aus");
     expect(en1.data.persons[0]!.notes![0]).toContain("Adopted from");
+  });
+});
+
+describe("Änderungs-Kern", () => {
+  it("jeder Code in src/core/edit.ts hat Übersetzungen (DE und EN)", () => {
+    const src = readFileSync(resolve(__dirname, "../../src/core/edit.ts"), "utf8");
+    const rel = readFileSync(resolve(__dirname, "../../src/core/relatives.ts"), "utf8");
+    const rejects = [...src.matchAll(/fail\("([a-z-]+)"/g), ...rel.matchAll(/reject\("([a-z-]+)"/g)].map((m) => `edit.reject.${m[1]}`);
+    const notes = [...src.matchAll(/note\("([a-z-]+)"/g), ...rel.matchAll(/code: "edit\.note\.([a-z-]+)"/g)].map((m) => `edit.note.${m[1]}`);
+    expect(rejects.length).toBeGreaterThan(10);
+    for (const code of [...new Set([...rejects, ...notes, "edit.reject.no-tree"])]) {
+      expect(de, code).toHaveProperty(code);
+      expect(editText({ code, params: { id: "p_1", union: "u_1", count: 2, unions: 1, children: 1, child: "p_2", parent: "p_3", other: "u_2" } }, "en"), code).not.toBe(code);
+    }
+  });
+
+  it("übersetzt eine echte Ablehnung", () => {
+    const r = applyEdit({ version: 1, persons: [], unions: [], sources: [] }, { type: "updatePerson", person: { id: "p_9", sex: "U" } });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(editText(r.reject, "de")).toBe("Die Person p_9 gibt es nicht (mehr).");
+    expect(editText(r.reject, "en")).toBe("Person p_9 does not exist (any more).");
   });
 });
 

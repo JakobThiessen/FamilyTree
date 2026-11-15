@@ -2,7 +2,8 @@
   // Oberfläche: Kopfleiste mit Reitern und Suche, Zeichenfläche mit Filterpanel, rechts Personendetails, Import-Dialog.
   // Baumdaten mit $state.raw: kein Proxy (IndexedDB kann Proxys nicht speichern, D13).
   import { onMount } from "svelte";
-  import { changesFromTouched, EditSession, FamilyGraph, PersonSearchIndex, serializeTreeData } from "../core";
+  import { changesFromTouched, dismissHint, EditSession, FamilyGraph, initialBackupState, markBackedUp, PersonSearchIndex, recordChange, serializeTreeData, shouldShowHint } from "../core";
+  import type { BackupState } from "../core";
   import type { EditOp, Person, PersonId, SessionResult, Source, TreeData } from "../core";
   import { exportGedcom } from "../import/gedcomExport";
   import { TreeStore } from "../storage";
@@ -16,11 +17,12 @@
   import PersonDetails from "./PersonDetails.svelte";
   import SearchBox from "./SearchBox.svelte";
   import TreeViewer from "./TreeViewer.svelte";
-  import { i18n, setLang, t } from "./lang.svelte";
+  import { i18n, setLang, t, tn } from "./lang.svelte";
   import { editText, errorText } from "./messages";
   import { LANGS } from "./i18n";
   import type { Lang } from "./i18n";
   import { describePerson } from "./personInfo";
+  import { loadBackupState, saveBackupState } from "./backupStore";
 
   // Speicher (IndexedDB). Wird beim Start geöffnet; fehlt IndexedDB, läuft die App ohne Speicherung.
   let store = $state.raw<TreeStore | null>(null);
@@ -37,6 +39,8 @@
   let canUndo = $state(false);
   let canRedo = $state(false);
   let unsavedHint = $state(false);
+  // Sicherungshinweis (D42): Änderungen seit Backup/Export, getrennt vom Speichern in IndexedDB.
+  let backup = $state<BackupState>(initialBackupState());
   let editError = $state("");
   let treeName = $state("");
   let savedId = $state<string | null>(null);
@@ -106,7 +110,15 @@
     setTree(d);
     treeName = name;
     savedId = id;
+    backup = id ? loadBackupState(id) : initialBackupState();
   }
+
+  function setBackup(s: BackupState) {
+    backup = s;
+    if (savedId) saveBackupState(savedId, s);
+  }
+  /** Backup oder Export ist geschrieben: Zähler zurücksetzen. */
+  const backedUp = () => setBackup(markBackedUp());
 
   /** Eine Person in der Nachbarschaft von `id` (Partner, Eltern, Kinder) im alten Graphen, die im neuen Baum noch steht: Ersatzfokus nach dem Löschen. */
   function neighborOf(old: FamilyGraph | null, id: PersonId, now: Map<PersonId, Person>): PersonId | undefined {
@@ -140,6 +152,7 @@
     );
     indexRev++;
     if (!savedId) unsavedHint = true;
+    setBackup(recordChange(backup));
     const fallback = oldFocus && !now.has(oldFocus) ? neighborOf(oldGraph, oldFocus, now) : undefined;
     const view = viewer?.updateData(next, changes, fallback);
     if (write) {
@@ -216,6 +229,7 @@
     }
     startId = res.rootId;
     setTree(res.data);
+    setBackup(recordChange(backup));
     notice = summary + (savedId ? "" : t("app.notSaved"));
   }
 
@@ -236,6 +250,7 @@
     a.download = name;
     a.click();
     URL.revokeObjectURL(url);
+    backedUp();
   }
   const baseName = () => treeName.replace(/\.[^.]+$/, "") || "stammbaum";
 </script>
@@ -269,6 +284,7 @@
       {#if !savedId}<button onclick={saveCurrent} disabled={!store} title={t("app.save.title")}>{t("app.save")}</button>{/if}
       <button onclick={() => download(exportGedcom(data!), `${baseName()}.ged`, "text/plain;charset=utf-8")}>GEDCOM</button>
       <button onclick={() => download(serializeTreeData(data!), `${baseName()}.json`, "application/json")}>JSON</button>
+      {#if backup.count > 0}<span class="since" title={t("backup.since.title")}>{tn("backup.since", backup.count)}</span>{/if}
       <button onclick={() => online.open()} title={t("app.online.title")}>{t("app.online")}</button>
       {#if tab === "tree"}<button class="panel-toggle" onclick={() => (panelOpen = !panelOpen)} aria-pressed={panelOpen}>{t("app.details")}</button>{/if}
     {/if}
@@ -281,6 +297,9 @@
   {/if}
   {#if unsavedHint && data && !savedId}
     <p class="notice" role="status">{t("edit.unsaved")} <button class="link" onclick={saveCurrent} disabled={!store}>{t("edit.unsaved.save")}</button> <button class="link" onclick={() => (unsavedHint = false)}>{t("app.close")}</button></p>
+  {/if}
+  {#if data && shouldShowHint(backup)}
+    <p class="notice" role="status">{tn("backup.hint", backup.count)} <button class="link" onclick={() => download(serializeTreeData(data!), `${baseName()}.json`, "application/json")}>{t("backup.hint.now")}</button> <button class="link" onclick={() => setBackup(dismissHint(backup))}>{t("app.close")}</button></p>
   {/if}
   {#if editError}<p class="notice bad" role="alert">{editError}</p>{/if}
   {#if storageError && data}<p class="notice bad" role="alert">{storageError}</p>{/if}
@@ -304,7 +323,7 @@
     {/if}
     {#if data && tab === "tree" && panelOpen}
       <aside aria-label={t("app.details")}>
-        <div class="details"><PersonDetails {info} onPick={pick} /></div>
+        <div class="details"><PersonDetails {info} {data} index={searchIndex} rev={indexRev} {persons} sources={data?.sources ?? []} onPick={pick} onEdit={edit} /></div>
       </aside>
     {/if}
   </main>
@@ -321,6 +340,7 @@
   canClose={data !== null}
   onShow={showTree}
   onSaved={refresh}
+  onBackup={() => { if (savedId) backedUp(); }}
 />
 
 <style>
@@ -347,6 +367,7 @@
   aside { display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; padding: 0.75rem; border-left: 1px solid var(--line); background: var(--panel); }
   .details { flex: 1; min-height: 0; overflow: auto; }
   header :global(.search ul) { min-width: 18rem; left: auto; right: 0; }
+  .since { font-size: 0.8rem; color: var(--dim); white-space: nowrap; }
   .notice { margin: 0; padding: 0.35rem 0.75rem; background: #16302c; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
   .notice.bad { background: #3a1c1c; color: var(--bad); }
   .empty { color: var(--dim); text-align: center; margin-top: 4rem; }

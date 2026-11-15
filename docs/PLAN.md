@@ -93,16 +93,24 @@ Reihenfolge (mit Nutzer abgestimmt): Backup, Export, DE/EN, Barrierefreiheit/Mob
 - [x] Weltkarte aus Natural Earth (D36)
 - [x] Restliche deutsche Texte übersetzen (D37)
 
-## M10 – Bearbeiten ⬜
+## M10 – Bearbeiten ✅
 Abgestimmt (2026-11-15): Formular im Detailfenster, Verwandte per Knöpfe an der Fokusperson (Unions entstehen automatisch), Löschen nur die Person mit Folgenhinweis, Undo/Redo nur in der Sitzung, Sicherung durch sofortiges gezieltes Schreiben in IndexedDB plus Backup/Export (keine Änderungshistorie).
 - [x] Schritt 1: Änderungs-Kern `src/core/edit.ts` (`applyEdit` → `data`, `inverse`, `touched`; Zyklen, Doppel-Biologie, leere Unions) mit Tests
 - [x] Schritt 2: `TreeStore.applyChanges` (gezieltes Schreiben in einer Transaktion, Zähler, Index-Hilfsfelder); D13/D27 ergänzen
 - [x] Schritt 3: Datenfluss in `App.svelte` (`$state.raw`), `LayoutClient.setData`, Undo/Redo (Strg+Z/Y), „erst speichern?“ bei ungespeichertem Baum; Messung mit 50.000 Personen
-- [ ] Schritt 4: Person bearbeiten (Formular in `PersonDetails.svelte`: Name, Geschlecht, Geburt/Tod mit Datum, Ort, Lat/Lon, Status, Quelle, Notizen; Texte DE/EN)
-- [ ] Schritt 5: Verwandte hinzufügen (Elternteil, Partner, Kind, Geschwister; Partner-/Union-Auswahl; optional vorhandene Person verknüpfen)
-- [ ] Schritt 6: Person löschen mit Folgenhinweis und Undo
-- [ ] Schritt 7: Sicherungshinweis („n Änderungen seit letztem Backup“)
+- [x] Schritt 4: Person bearbeiten (Formular in `PersonDetails.svelte`: Name, Geschlecht, Geburt/Tod mit Datum, Ort, Lat/Lon, Status, Quelle, Notizen; Texte DE/EN)
+- [x] Schritt 5: Verwandte hinzufügen (Elternteil, Partner, Kind, Geschwister; Partner-/Union-Auswahl; optional vorhandene Person verknüpfen)
+- [x] Schritt 6: Person löschen mit Folgenhinweis und Undo
+- [x] Schritt 7: Sicherungshinweis („n Änderungen seit letztem Backup“)
 - Später (eigener Meilenstein): Dubletten echt zusammenführen, Orte per Wikidata beim Eingeben, Fächerdiagramm, PWA
+
+## M11 – Bilder und Medien ⬜ (später, Zeitpunkt offen)
+Anlass: GEDCOM-Exporte (z. B. MyHeritage) enthalten Medienverweise (`OBJE`/`FILE`) auf Fotos; der Import ignoriert sie bisher, das Datenmodell hat kein Feld dafür. Reihenfolge und Umfang beim Start mit dem Nutzer abstimmen.
+- [ ] Datenmodell: Medien an Person (und Ereignis), Format-Version und `TreeData`-Austausch erweitern (D-Eintrag)
+- [ ] GEDCOM-Import/-Export: `OBJE`-Verweise (Datei, Titel, Format) lesen und schreiben; relative und absolute Pfade, fehlende Dateien als Hinweis
+- [ ] Zugriff im Browser: Nutzer wählt den Fotoordner (oder Dateien), Zuordnung über Dateinamen; Bilder in IndexedDB und im Backup (Größe beachten)
+- [ ] Anzeige: Vorschaubild und Galerie im Detailfenster, Alternativtext (Barrierefreiheit); Zugriff nur lokal, nichts geht ins Netz
+- Hinweis: Die echten Fotos liegen unter `imports/` und werden nicht eingecheckt; Beispiele nur mit erfundenen Bildern.
 
 ## Offene Fragen
 - Soll später ein Mehrbenutzer-Betrieb oder Sync möglich sein? (Aktuell: nein, lokal)
