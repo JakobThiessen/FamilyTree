@@ -46,3 +46,5 @@ Interne IDs sind stabile Strings (`p_…`, `u_…`, `s_…`). Externe IDs (GEDCO
 - Jede Person-ID kommt nur einmal vor.
 - Jede Union verweist nur auf existierende Personen.
 - Ein Kind steht höchstens in einer biologischen Union (Adoption darf zusätzlich bestehen).
+
+Änderungen laufen über `applyEdit` (`src/core/edit.ts`, D38); es lehnt Operationen ab, die diese Invarianten verletzen würden.

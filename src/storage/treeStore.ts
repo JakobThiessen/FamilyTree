@@ -3,7 +3,7 @@
  * Die einzige Stelle mit Seiteneffekten für Persistenz; `src/core` bleibt rein.
  */
 
-import type { Citation, Person, PersonId, Source, SourceId, TreeData, Union } from "../core";
+import type { Citation, Person, PersonId, Source, SourceId, TreeChanges, TreeData, Union } from "../core";
 import type { BackupTree } from "../import/backup";
 import { openTreeDb, personKey } from "./schema";
 import type { Db, TreeMeta } from "./schema";
@@ -142,6 +142,87 @@ export class TreeStore {
     } catch (e) {
       // put() kann schon beim Absetzen werfen (z. B. nicht speicherbarer Wert): dann abbrechen.
       for (const w of writes) w.catch(() => {});
+      try {
+        tx.abort();
+      } catch {
+        /* Transaktion war schon beendet */
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * Schreibt gezielt nur die geänderten Datensätze (M10, D38), alles in EINER Transaktion:
+   * bei einem Fehler bleibt der alte Stand. Für Unions werden die Hilfsfelder `partnerKeys`/`childKeys`
+   * neu gebildet; die Zähler im `trees`-Eintrag ändern sich um die Zahl wirklich neuer bzw. gelöschter
+   * Datensätze, `updatedAt` wird gesetzt. Löschen gewinnt, wenn eine ID in put und delete steht.
+   * Die Änderungsliste liefert `changesFromTouched` bzw. `applyEdit` aus `src/core/edit.ts`.
+   */
+  async applyChanges(treeId: string, changes: TreeChanges): Promise<TreeMeta> {
+    const tx = this.db.transaction(["trees", "persons", "unions", "sources"], "readwrite");
+    tx.done.catch(() => {}); // Ablehnung wird über den Aufrufer gemeldet, nicht doppelt
+    try {
+      const meta = await tx.objectStore("trees").get(treeId);
+      if (!meta) throw new TreeNotFoundError(treeId);
+      const persons = tx.objectStore("persons");
+      const unions = tx.objectStore("unions");
+      const sources = tx.objectStore("sources");
+
+      const dedupe = <T extends { id: string }>(put: T[] | undefined, del: string[] | undefined) => {
+        const delIds = [...new Set(del ?? [])];
+        const gone = new Set(delIds);
+        const putMap = new Map((put ?? []).filter((x) => !gone.has(x.id)).map((x) => [x.id, x]));
+        return { put: [...putMap.values()], del: delIds };
+      };
+      const p = dedupe(changes.putPersons, changes.deletePersons);
+      const u = dedupe(changes.putUnions, changes.deleteUnions);
+      const s = dedupe(changes.putSources, changes.deleteSources);
+
+      // Vorhandensein vorab klären, um die Zähler richtig nachzuführen.
+      const exists = async (store: typeof persons | typeof unions | typeof sources, ids: string[]) =>
+        (await Promise.all(ids.map((id) => store.getKey([treeId, id])))).filter((k) => k !== undefined).length;
+      const [pNew, pGone, uNew, uGone, sNew, sGone] = await Promise.all([
+        exists(persons, p.put.map((x) => x.id)).then((have) => p.put.length - have),
+        exists(persons, p.del),
+        exists(unions, u.put.map((x) => x.id)).then((have) => u.put.length - have),
+        exists(unions, u.del),
+        exists(sources, s.put.map((x) => x.id)).then((have) => s.put.length - have),
+        exists(sources, s.del),
+      ]);
+
+      // Jeder Auftrag bekommt sofort einen Fänger: bricht put() mittendrin ab, bleiben die schon
+      // abgesetzten Aufträge sonst als unbehandelte Ablehnung zurück (sie werden mit abgebrochen).
+      const writes: Promise<unknown>[] = [];
+      const push = (w: Promise<unknown>) => {
+        w.catch(() => {});
+        writes.push(w);
+      };
+      for (const id of p.del) push(persons.delete([treeId, id]));
+      for (const id of u.del) push(unions.delete([treeId, id]));
+      for (const id of s.del) push(sources.delete([treeId, id]));
+      for (const x of p.put) push(persons.put({ ...x, treeId }));
+      for (const x of s.put) push(sources.put({ ...x, treeId }));
+      for (const x of u.put) {
+        push(
+          unions.put({
+            ...x,
+            treeId,
+            partnerKeys: x.partnerIds.map((id) => personKey(treeId, id)),
+            childKeys: x.children.map((c) => personKey(treeId, c.personId)),
+          }),
+        );
+      }
+      const next: TreeMeta = {
+        ...meta,
+        updatedAt: Date.now(),
+        personCount: meta.personCount + pNew - pGone,
+        unionCount: meta.unionCount + uNew - uGone,
+        sourceCount: meta.sourceCount + sNew - sGone,
+      };
+      push(tx.objectStore("trees").put(next));
+      await Promise.all([...writes, tx.done]);
+      return next;
+    } catch (e) {
       try {
         tx.abort();
       } catch {

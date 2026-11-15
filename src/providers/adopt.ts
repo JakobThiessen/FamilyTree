@@ -9,6 +9,7 @@
  */
 import { DuplicateFinder } from "../core/duplicates";
 import { formatFuzzyDate } from "../core/fuzzyDate";
+import { IdSource } from "../core/ids";
 import type {
   ChildLink,
   Citation,
@@ -48,26 +49,6 @@ export interface AdoptResult {
 
 const SYSTEM_LABEL: Record<string, string> = { wikitree: "WikiTree", wikidata: "Wikidata", familysearch: "FamilySearch" };
 const label = (system: string) => SYSTEM_LABEL[system] ?? system;
-
-/** Zähler für fortlaufende IDs wie `p_12`: nächste freie Nummer nach der größten vorhandenen. */
-class IdSource {
-  private next: number;
-  constructor(
-    private readonly prefix: string,
-    existing: Iterable<string>,
-  ) {
-    let max = 0;
-    const re = new RegExp(`^${prefix}_(\\d+)$`);
-    for (const id of existing) {
-      const m = re.exec(id);
-      if (m) max = Math.max(max, Number(m[1]));
-    }
-    this.next = max + 1;
-  }
-  take(): string {
-    return `${this.prefix}_${this.next++}`;
-  }
-}
 
 const hasRef = (refs: ExternalRef[] | undefined, r: ExternalRef) =>
   refs?.some((x) => x.system === r.system && x.id === r.id) ?? false;

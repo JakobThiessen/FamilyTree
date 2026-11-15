@@ -4,6 +4,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (M10 Schritt 1+2: Änderungs-Kern und gezieltes Speichern, D38)
+- `src/core/edit.ts` (reines TS): `applyEdit(data, op)` → `{ ok, data, inverse, touched, created, notes }` oder `{ ok: false, reject }`. Operationen `addPerson`/`updatePerson`/`deletePerson`, `addUnion`/`updateUnion`/`deleteUnion`, `linkChild`/`unlinkChild`, `addSource`/`updateSource` und `patch` (Umkehr/Redo). Prüft die Invarianten (kein Zyklus, Kind höchstens in einer biologischen Union, Partner/Kinder/Quellen existieren, höchstens 2 verschiedene Partner). Person löschen: raus aus Unions, Kinder bleiben, Union ohne Partner und ohne Kinder verschwindet. `changesFromTouched(data, touched)` macht aus den berührten IDs eine Änderungsliste (`TreeChanges`)
+- Ablehnungen (`edit.reject.*`) und Hinweise (`edit.note.*`) als Code + Parameter (D37); Übersetzungen in der UI folgen mit Schritt 4–6
+- `src/core/ids.ts`: `IdSource` (fortlaufende IDs `p_n`/`u_n`/`s_n`) aus `adoptBatch` ausgelagert, Verhalten unverändert
+- `TreeStore.applyChanges(treeId, { putPersons, deletePersons, putUnions, deleteUnions, putSources, deleteSources })`: eine Transaktion, Hilfsfelder `partnerKeys`/`childKeys` neu gebildet, Zähler und `updatedAt` im `trees`-Eintrag nachgeführt, Rollback bei Fehler
+- Tests: neue `tests/core/edit.test.ts` (17) und 5 in `tests/storage/treeStore.test.ts` (Speicher = Datenbank, Nachbarschaft/Unions nach Änderungen, Rollback, Undo), insgesamt 271 Tests grün; keine UI-Änderung
+
 ### Hinzugefügt (Nachfolgearbeiten nach M9, Quellenangabe)
 - Inspirationsquelle (Video von Niklas Steenfatt, 6:00–7:22) mit Link im `README.md` (Abschnitt „Inspiration“), `docs/UI-KONZEPT.md` und `docs/memory.md`
 

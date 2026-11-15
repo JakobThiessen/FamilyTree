@@ -2,7 +2,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { parseTreeJson, type Person, type TreeData, type Union } from "../../src/core";
+import { applyEdit, changesFromTouched, parseTreeJson, type EditOp, type Person, type TreeData, type Union } from "../../src/core";
 import { importFileContent, parseBackup, serializeBackup } from "../../src/import";
 import { TreeNotFoundError, TreeStore } from "../../src/storage";
 
@@ -196,5 +196,110 @@ describe("Backup und Restore", () => {
     expect(() => parseBackup("kein json")).toThrow();
     expect(() => parseBackup('{"format":"anderes"}')).toThrow(/Backup/);
     expect(() => parseBackup('{"format":"familytree-backup","version":1,"trees":[{"name":"x","data":{}}]}')).toThrow();
+  });
+});
+
+describe("Gezieltes Schreiben (applyChanges, M10, D38)", () => {
+  /** Gleiche Operationen im Speicher und in der Datenbank; danach müssen beide Stände übereinstimmen. */
+  async function run(treeId: string, data: TreeData, ops: EditOp[]): Promise<TreeData> {
+    let d = data;
+    for (const op of ops) {
+      const r = applyEdit(d, op);
+      if (!r.ok) throw new Error(r.reject.code);
+      d = r.data;
+      await store.applyChanges(treeId, changesFromTouched(d, r.touched));
+    }
+    return d;
+  }
+
+  const ops: EditOp[] = [
+    { type: "addPerson", person: { givenNames: "Neu", surname: "Test", sex: "F" } }, // p_<n>
+    { type: "addSource", source: { title: "Neue Quelle" } },
+    { type: "deletePerson", id: "p_3" },
+    { type: "updatePerson", person: { id: "p_2", givenNames: "Geändert", sex: "M" } },
+  ];
+
+  it("loadTree entspricht dem Stand von applyEdit im Speicher, Zähler stimmen", async () => {
+    const data = chain(5);
+    const meta = await store.saveTree("Kette", data);
+    const n = data.persons.length;
+    const added = `p_${n}`; // chain vergibt p_0..p_5, q_0..q_4: nächste freie p-Nummer ist p_6
+    void added;
+    const mem = await run(meta.id, data, [
+      ...ops,
+      { type: "linkChild", unionId: "u_0", personId: "q_4", kind: "adopted" },
+      { type: "addUnion", union: { partnerIds: ["p_2"], kind: "partnership", children: [] } },
+    ]);
+    const loaded = await store.loadTree(meta.id);
+    expect(sorted(loaded.persons)).toEqual(sorted(mem.persons));
+    expect(sorted(loaded.unions)).toEqual(sorted(mem.unions));
+    expect(sorted(loaded.sources)).toEqual(sorted(mem.sources));
+    const m = await store.getTree(meta.id);
+    expect([m?.personCount, m?.unionCount, m?.sourceCount]).toEqual([mem.persons.length, mem.unions.length, mem.sources.length]);
+    expect(m!.updatedAt).toBeGreaterThanOrEqual(meta.updatedAt);
+  });
+
+  it("loadUnionsOf und loadNeighborhood stimmen nach Änderungen (Hilfsfelder neu gebildet)", async () => {
+    const data = chain(4);
+    const meta = await store.saveTree("Kette", data);
+    // p_1 wechselt: wird aus u_1 (Kind) gelöst und Kind von u_3; Partner q_0 wird aus u_0 entfernt
+    const mem = await run(meta.id, data, [
+      { type: "unlinkChild", unionId: "u_0", personId: "p_0" },
+      { type: "linkChild", unionId: "u_3", personId: "p_0", kind: "adopted" },
+      { type: "deletePerson", id: "q_0" },
+    ]);
+    const g = (id: string) => mem.unions.filter((u) => u.partnerIds.includes(id) || u.children.some((c) => c.personId === id));
+    for (const id of ["p_0", "p_1", "p_3", "p_4", "q_0", "q_3"]) {
+      const got = await store.loadUnionsOf(meta.id, id);
+      expect(sorted(got)).toEqual(sorted(g(id)));
+    }
+    const nb = await store.loadNeighborhood(meta.id, "p_0", { up: 2, down: 0 });
+    expect(nb.unions.map((u) => u.id)).toContain("u_3"); // neuer Elternweg von p_0
+    expect(nb.persons.some((p) => p.id === "q_0")).toBe(false);
+  });
+
+  it("unbekannter Baum: TreeNotFoundError; Löschen mit unbekannter ID ändert Zähler nicht", async () => {
+    await expect(store.applyChanges("t_gibtsnicht", { putPersons: [] })).rejects.toBeInstanceOf(TreeNotFoundError);
+    const meta = await store.saveTree("K", chain(2));
+    const after = await store.applyChanges(meta.id, { deletePersons: ["p_99"], deleteUnions: ["u_99"], putPersons: [{ id: "p_0", sex: "U" }] });
+    expect(after.personCount).toBe(meta.personCount);
+    expect(after.unionCount).toBe(meta.unionCount);
+  });
+
+  it("Rollback: bei einem Fehler bleibt alles beim alten Stand", async () => {
+    const data = chain(3);
+    const meta = await store.saveTree("K", data);
+    // Eine Funktion im Datensatz lässt IndexedDB beim Klonen scheitern; davor stehende Schreibaufträge müssen zurückgerollt werden.
+    const bad = { id: "p_bad", sex: "U", notes: [(() => 1) as unknown as string] } as Person;
+    await expect(
+      store.applyChanges(meta.id, {
+        deletePersons: ["p_0"],
+        putPersons: [{ id: "p_1", givenNames: "Nope", sex: "F" }, bad],
+        putUnions: [{ id: "u_new", partnerIds: ["p_1"], kind: "unknown", children: [] }],
+      }),
+    ).rejects.toBeDefined();
+    const loaded = await store.loadTree(meta.id);
+    expect(sorted(loaded.persons)).toEqual(sorted(data.persons));
+    expect(sorted(loaded.unions)).toEqual(sorted(data.unions));
+    const m = await store.getTree(meta.id);
+    expect(m).toEqual(meta);
+    // Die Datenbank bleibt benutzbar.
+    await store.applyChanges(meta.id, { putPersons: [{ id: "p_x", sex: "U" }] });
+    expect((await store.getTree(meta.id))?.personCount).toBe(meta.personCount + 1);
+  });
+
+  it("Undo über inverse schreibt den Ausgangszustand zurück", async () => {
+    const data = chain(3);
+    const meta = await store.saveTree("K", data);
+    const r = applyEdit(data, { type: "deletePerson", id: "p_2" });
+    if (!r.ok) throw new Error("abgelehnt");
+    await store.applyChanges(meta.id, changesFromTouched(r.data, r.touched));
+    const back = applyEdit(r.data, r.inverse);
+    if (!back.ok) throw new Error("abgelehnt");
+    await store.applyChanges(meta.id, changesFromTouched(back.data, back.touched));
+    const loaded = await store.loadTree(meta.id);
+    expect(sorted(loaded.persons)).toEqual(sorted(data.persons));
+    expect(sorted(loaded.unions)).toEqual(sorted(data.unions));
+    expect((await store.getTree(meta.id))?.personCount).toBe(data.persons.length);
   });
 });
