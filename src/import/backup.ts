@@ -38,17 +38,17 @@ export function parseBackup(text: string): BackupTree[] {
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new TreeFormatError("Keine gültige JSON-Datei.");
+    throw new TreeFormatError("Keine gültige JSON-Datei.", "backup-invalid-json");
   }
   const r = raw as Partial<BackupFile> | null;
   if (!r || typeof r !== "object" || r.format !== BACKUP_FORMAT) {
-    throw new TreeFormatError("Das ist keine FamilyTree-Backup-Datei.");
+    throw new TreeFormatError("Das ist keine FamilyTree-Backup-Datei.", "backup-not-backup");
   }
-  if (r.version !== BACKUP_VERSION) throw new TreeFormatError(`Nicht unterstützte Backup-Version: ${String(r.version)}.`);
-  if (!Array.isArray(r.trees)) throw new TreeFormatError('Feld "trees" muss eine Liste sein.');
+  if (r.version !== BACKUP_VERSION) throw new TreeFormatError(`Nicht unterstützte Backup-Version: ${String(r.version)}.`, "backup-version", { version: String(r.version) });
+  if (!Array.isArray(r.trees)) throw new TreeFormatError('Feld "trees" muss eine Liste sein.', "backup-trees-list");
   return r.trees.map((t, i) => {
     if (!t || typeof t !== "object" || typeof t.name !== "string") {
-      throw new TreeFormatError(`trees[${i}]: "name" (Text) fehlt.`);
+      throw new TreeFormatError(`trees[${i}]: "name" (Text) fehlt.`, "backup-tree-name", { i });
     }
     const now = Date.now();
     return {

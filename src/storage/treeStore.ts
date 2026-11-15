@@ -15,8 +15,11 @@ export interface NeighborhoodOptions {
 }
 
 export class TreeNotFoundError extends Error {
+  readonly code = "tree-not-found";
+  readonly params: Record<string, string>;
   constructor(treeId: string) {
     super(`Baum nicht gefunden: ${treeId}`);
+    this.params = { id: treeId };
     this.name = "TreeNotFoundError";
   }
 }

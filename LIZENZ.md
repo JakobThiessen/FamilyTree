@@ -10,7 +10,7 @@ Eigene Inhalte des Projekts:
 
 - **Quellcode** (`src/`, `tests/`, `scripts/`) und **Dokumente** (`docs/`, `README.md`): MIT, siehe oben.
 - **Beispieldaten** (`example/`): ausschließlich erfundene Personen, ohne Bezug zu echten Menschen.
-- **Weltkarte** (`src/ui/worldMap.ts`): von Hand aus wenigen Küstenpunkten gebaut, keine Fremddaten.
+- **Weltkarte** (`src/ui/worldMap.ts`): vereinfachte Küstenlinien aus **Natural Earth** (1:50m, Ebenen „Land“ und „Lakes“), erzeugt mit `scripts/build-world-map.mjs`. Natural Earth ist gemeinfrei (public domain), eine Namensnennung ist nicht verpflichtend, wird aber gern gesehen: „Made with Natural Earth.“ (https://www.naturalearthdata.com/). Siehe D36.
 - Keine eingebundenen Schriften, Bilder oder Icons von Dritten (die Oberfläche nutzt die Systemschrift).
 
 ## 2. Abhängigkeiten

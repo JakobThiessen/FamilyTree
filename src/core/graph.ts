@@ -24,6 +24,8 @@ export type IssueCode =
 export interface ValidationIssue {
   code: IssueCode;
   message: string;
+  /** Werte für die Übersetzung der Meldung (UI: `issue.<code>`) */
+  params?: Record<string, string | number>;
   ids: string[];
 }
 
@@ -75,6 +77,7 @@ export class FamilyGraph {
         this.buildIssues.push({
           code: "duplicate-person",
           message: `Person-ID ${p.id} kommt mehrfach vor (die erste gilt).`,
+params: { id: p.id },
           ids: [p.id],
         });
         continue;
@@ -87,6 +90,7 @@ export class FamilyGraph {
         this.buildIssues.push({
           code: "duplicate-union",
           message: `Union-ID ${u.id} kommt mehrfach vor (die erste gilt).`,
+params: { id: u.id },
           ids: [u.id],
         });
         continue;
@@ -103,6 +107,7 @@ export class FamilyGraph {
       this.buildIssues.push({
         code: "too-many-partners",
         message: `Union ${u.id} hat ${u.partnerIds.length} Partner (erlaubt: höchstens 2).`,
+params: { id: u.id, n: u.partnerIds.length },
         ids: [u.id],
       });
     }
@@ -113,6 +118,7 @@ export class FamilyGraph {
         this.buildIssues.push({
           code: "dangling-partner",
           message: `Union ${u.id} verweist auf unbekannte Person ${pid}.`,
+params: { id: u.id, person: pid },
           ids: [u.id, pid],
         });
         continue;
@@ -121,6 +127,7 @@ export class FamilyGraph {
         this.buildIssues.push({
           code: "duplicate-partner",
           message: `Union ${u.id} enthält ${pid} doppelt.`,
+params: { id: u.id, person: pid },
           ids: [u.id, pid],
         });
         continue;
@@ -135,6 +142,7 @@ export class FamilyGraph {
         this.buildIssues.push({
           code: "dangling-child",
           message: `Union ${u.id} verweist auf unbekanntes Kind ${link.personId}.`,
+params: { id: u.id, person: link.personId },
           ids: [u.id, link.personId],
         });
         continue;
@@ -143,6 +151,7 @@ export class FamilyGraph {
         this.buildIssues.push({
           code: "duplicate-child-link",
           message: `Kind ${link.personId} steht in Union ${u.id} doppelt.`,
+params: { id: u.id, person: link.personId },
           ids: [u.id, link.personId],
         });
         continue;
@@ -307,6 +316,7 @@ export class FamilyGraph {
         issues.push({
           code: "multiple-biological-unions",
           message: `Kind ${childId} steht in ${bio.length} biologischen Unions.`,
+params: { person: childId, n: bio.length },
           ids: [childId, ...bio.map((l) => l.union.id)],
         });
       }
@@ -352,6 +362,7 @@ export class FamilyGraph {
           issues.push({
             code: "parent-cycle",
             message: `Zyklus in Eltern-Kind-Beziehungen: ${cycle.join(" → ")}.`,
+params: { cycle: cycle.join(" → ") },
             ids: cycle,
           });
         } else if (c === WHITE) {

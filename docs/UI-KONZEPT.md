@@ -1,6 +1,8 @@
 # UI-Konzept: Oberfläche mit Rubriken
 
-Entwurf, abgestimmt mit dem Nutzer (Stand 2026-11-14). Vorbild: Stammbaum-App aus Niklas Steenfatts Video (Minute 6:00–7:22, kein Quellcode öffentlich). Wir übernehmen die **Aufteilung**, nicht den Code oder das Design im Detail.
+Entwurf, abgestimmt mit dem Nutzer (Stand 2026-11-14). Vorbild: Stammbaum-App aus Niklas Steenfatts Video (https://www.youtube.com/watch?v=6oXBtuLgJNQ&t=360s, Minute 6:00–7:22, kein Quellcode öffentlich). Wir übernehmen die **Aufteilung**, nicht den Code oder das Design im Detail.
+
+> **Stand 2026-11-15:** Die Reiter **Forschung** und **Quellen** (im Video vorhanden) werden nicht gebaut und sind aus der Oberfläche entfernt. Die Tabellenzeilen und Schritt 6 unten bleiben nur als Ursprungsentwurf stehen.
 
 ## Was im Video zu sehen ist
 - **Kopfleiste:** Logo mit Untertitel links, in der Mitte Reiter **Stammbaum · Ahnen · Zeitleiste · Karte · Forschung · Quellen**, rechts Suche und Sprachumschalter DE/EN. Dunkler Hintergrund, Goldton als Akzent.

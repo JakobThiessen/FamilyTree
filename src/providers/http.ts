@@ -12,7 +12,7 @@ export async function requestJson(
   serviceName = "Quelle",
 ): Promise<unknown> {
   const f = ctx?.fetch ?? globalThis.fetch;
-  if (!f) throw new ProviderError("network", "Kein fetch verfügbar.");
+  if (!f) throw new ProviderError("network", "Kein fetch verfügbar.", undefined, { code: "no-fetch" });
   let res: Response;
   try {
     res = await f(url, { ...init, signal: ctx?.signal });
@@ -22,16 +22,21 @@ export async function requestJson(
     throw new ProviderError(
       "network",
       `${serviceName} ist nicht erreichbar. Mögliche Gründe: keine Internetverbindung, ein Blocker, oder die Quelle erlaubt keine Abfragen direkt aus dem Browser (CORS).`,
+      undefined,
+      { code: "unreachable", params: { service: serviceName } },
     );
   }
   if (!res.ok) {
     const hint = res.status === 429 ? " (zu viele Anfragen, bitte später erneut versuchen)" : "";
-    throw new ProviderError("http", `${serviceName} antwortet mit Fehler ${res.status}${hint}.`, res.status);
+    throw new ProviderError("http", `${serviceName} antwortet mit Fehler ${res.status}${hint}.`, res.status, {
+      code: res.status === 429 ? "rate-limit" : "http-status",
+      params: { service: serviceName, status: res.status },
+    });
   }
   try {
     return await res.json();
   } catch {
-    throw new ProviderError("format", `${serviceName} hat keine lesbare Antwort geliefert.`);
+    throw new ProviderError("format", `${serviceName} hat keine lesbare Antwort geliefert.`, undefined, { code: "unreadable", params: { service: serviceName } });
   }
 }
 

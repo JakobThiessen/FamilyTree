@@ -9,7 +9,16 @@ import type { TreeData } from "./types";
 
 /** Das JSON hat nicht die erwartete Form. */
 export class TreeFormatError extends Error {
-  constructor(message: string) {
+  /**
+   * @param message deutscher Text (Rückfall, Tests)
+   * @param code    Kennung für die Übersetzung in der Oberfläche (`error.<code>`, D37)
+   * @param params  Werte für den übersetzten Text
+   */
+  constructor(
+    message: string,
+    readonly code?: string,
+    readonly params?: Record<string, string | number>,
+  ) {
     super(message);
     this.name = "TreeFormatError";
   }
@@ -21,27 +30,27 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 /** Prüft die Grobform. Inhaltliche Fehler (Zyklen, hängende IDs) meldet `FamilyGraph.validate()`. */
 export function parseTreeData(input: unknown): TreeData {
-  if (!isRecord(input)) throw new TreeFormatError("Wurzel muss ein JSON-Objekt sein.");
-  if (input.version !== 1) throw new TreeFormatError(`Nicht unterstützte Version: ${String(input.version)}.`);
-  if (!Array.isArray(input.persons)) throw new TreeFormatError('Feld "persons" muss eine Liste sein.');
-  if (!Array.isArray(input.unions)) throw new TreeFormatError('Feld "unions" muss eine Liste sein.');
+  if (!isRecord(input)) throw new TreeFormatError("Wurzel muss ein JSON-Objekt sein.", "root-not-object");
+  if (input.version !== 1) throw new TreeFormatError(`Nicht unterstützte Version: ${String(input.version)}.`, "version", { version: String(input.version) });
+  if (!Array.isArray(input.persons)) throw new TreeFormatError('Feld "persons" muss eine Liste sein.', "persons-list");
+  if (!Array.isArray(input.unions)) throw new TreeFormatError('Feld "unions" muss eine Liste sein.', "unions-list");
   if (input.sources !== undefined && !Array.isArray(input.sources)) {
-    throw new TreeFormatError('Feld "sources" muss eine Liste sein.');
+    throw new TreeFormatError('Feld "sources" muss eine Liste sein.', "sources-list");
   }
 
   input.persons.forEach((p: unknown, i: number) => {
-    if (!isRecord(p) || typeof p.id !== "string") throw new TreeFormatError(`persons[${i}]: "id" (Text) fehlt.`);
+    if (!isRecord(p) || typeof p.id !== "string") throw new TreeFormatError(`persons[${i}]: "id" (Text) fehlt.`, "person-id", { i });
     if (p.sex !== "M" && p.sex !== "F" && p.sex !== "U") {
-      throw new TreeFormatError(`persons[${i}] (${p.id}): "sex" muss M, F oder U sein.`);
+      throw new TreeFormatError(`persons[${i}] (${p.id}): "sex" muss M, F oder U sein.`, "person-sex", { i, id: p.id });
     }
   });
   input.unions.forEach((u: unknown, i: number) => {
-    if (!isRecord(u) || typeof u.id !== "string") throw new TreeFormatError(`unions[${i}]: "id" (Text) fehlt.`);
+    if (!isRecord(u) || typeof u.id !== "string") throw new TreeFormatError(`unions[${i}]: "id" (Text) fehlt.`, "union-id", { i });
     if (!Array.isArray(u.partnerIds) || !u.partnerIds.every((x) => typeof x === "string")) {
-      throw new TreeFormatError(`unions[${i}] (${u.id}): "partnerIds" muss eine Liste von Texten sein.`);
+      throw new TreeFormatError(`unions[${i}] (${u.id}): "partnerIds" muss eine Liste von Texten sein.`, "union-partners", { i, id: u.id });
     }
     if (!Array.isArray(u.children) || !u.children.every((c) => isRecord(c) && typeof c.personId === "string")) {
-      throw new TreeFormatError(`unions[${i}] (${u.id}): "children" muss Einträge mit "personId" haben.`);
+      throw new TreeFormatError(`unions[${i}] (${u.id}): "children" muss Einträge mit "personId" haben.`, "union-children", { i, id: u.id });
     }
   });
 
@@ -55,7 +64,7 @@ export function parseTreeJson(text: string): TreeData {
   try {
     raw = JSON.parse(text);
   } catch (e) {
-    throw new TreeFormatError(`Kein gültiges JSON: ${(e as Error).message}`);
+    throw new TreeFormatError(`Kein gültiges JSON: ${(e as Error).message}`, "invalid-json", { detail: (e as Error).message });
   }
   return parseTreeData(raw);
 }

@@ -112,12 +112,12 @@ export function createWikiTreeProvider(opts: WikiTreeOptions = {}): Provider {
       )) as { status?: number | string; matches?: WtPerson[] }[];
       const first = Array.isArray(json) ? json[0] : undefined;
       if (!first || !Array.isArray(first.matches)) {
-        throw new ProviderError("format", "WikiTree hat keine lesbare Antwort geliefert.");
+        throw new ProviderError("format", "WikiTree hat keine lesbare Antwort geliefert.", undefined, { code: "unreadable", params: { service: "WikiTree" } });
       }
       return first.matches.map(toExternalPerson).filter((p): p is ExternalPerson => p !== null);
     },
     async fetchRelatives(ref, ctx) {
-      if (ref.system !== SYSTEM) throw new ProviderError("config", "Verweis gehört nicht zu WikiTree.");
+      if (ref.system !== SYSTEM) throw new ProviderError("config", "Verweis gehört nicht zu WikiTree.", undefined, { code: "wrong-system", params: { service: "WikiTree" } });
       const json = (await requestJson(
         withParams(base, {
           action: "getRelatives",
@@ -133,7 +133,7 @@ export function createWikiTreeProvider(opts: WikiTreeOptions = {}): Provider {
         "WikiTree",
       )) as { items?: { person?: WtRelatives }[] }[];
       const person = Array.isArray(json) ? json[0]?.items?.[0]?.person : undefined;
-      if (!person) throw new ProviderError("format", `WikiTree kennt kein offenes Profil ${ref.id}.`);
+      if (!person) throw new ProviderError("format", `WikiTree kennt kein offenes Profil ${ref.id}.`, undefined, { code: "no-open-profile", params: { id: ref.id } });
       return buildBatch(person);
     },
   };
@@ -148,7 +148,7 @@ type WtRelatives = WtPerson & {
 /** Eltern-, Partner- und Kinderlisten zu Personen und Unions zusammenführen. */
 export function buildBatch(w: WtRelatives): ImportBatch {
   const root = toExternalPerson(w);
-  if (!root) throw new ProviderError("format", "WikiTree-Profil ohne Namen.");
+  if (!root) throw new ProviderError("format", "WikiTree-Profil ohne Namen.", undefined, { code: "profile-no-name" });
   const people = new Map<string, ExternalPerson>([[root.ref.id, root]]);
   const nameById = new Map<number, string>();
   if (w.Id !== undefined && w.Name) nameById.set(w.Id, w.Name);

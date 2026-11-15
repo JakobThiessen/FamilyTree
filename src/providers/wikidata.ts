@@ -89,7 +89,7 @@ export function searchQuery(q: PersonQuery, limit = 20): string {
 }
 
 export function relativesQuery(id: string): string {
-  if (!/^Q\d+$/.test(id)) throw new ProviderError("config", `Ungültige Wikidata-Kennung: ${id}`);
+  if (!/^Q\d+$/.test(id)) throw new ProviderError("config", `Ungültige Wikidata-Kennung: ${id}`, undefined, { code: "bad-id", params: { id } });
   return `SELECT ?kind ?relFather ?relMother ${FIELDS} WHERE {
   { wd:${id} wdt:P22 ?item. BIND("father" AS ?kind) }
   UNION { wd:${id} wdt:P25 ?item. BIND("mother" AS ?kind) }
@@ -139,7 +139,7 @@ async function sparql(query: string, ctx?: ProviderContext, endpoint = WIKIDATA_
     "Wikidata",
   )) as { results?: { bindings?: Row[] } };
   const rows = json?.results?.bindings;
-  if (!Array.isArray(rows)) throw new ProviderError("format", "Wikidata hat keine lesbare Antwort geliefert.");
+  if (!Array.isArray(rows)) throw new ProviderError("format", "Wikidata hat keine lesbare Antwort geliefert.", undefined, { code: "unreadable", params: { service: "Wikidata" } });
   return rows;
 }
 
@@ -165,20 +165,20 @@ export function createWikidataProvider(opts: WikidataOptions = {}): Provider {
       return people.sort((a, b) => dist(a) - dist(b));
     },
     async fetchRelatives(ref, ctx): Promise<ImportBatch> {
-      if (ref.system !== SYSTEM) throw new ProviderError("config", "Verweis gehört nicht zu Wikidata.");
+      if (ref.system !== SYSTEM) throw new ProviderError("config", "Verweis gehört nicht zu Wikidata.", undefined, { code: "wrong-system", params: { service: "Wikidata" } });
       const [self, rows] = await Promise.all([
         sparql(selfQuery(ref.id), ctx, endpoint),
         sparql(relativesQuery(ref.id), ctx, endpoint),
       ]);
       const root = uniquePeople(self)[0];
-      if (!root) throw new ProviderError("format", `Wikidata kennt keine Person ${ref.id}.`);
+      if (!root) throw new ProviderError("format", `Wikidata kennt keine Person ${ref.id}.`, undefined, { code: "unknown-person", params: { service: "Wikidata", id: ref.id } });
       return buildBatch(root, rows);
     },
   };
 }
 
 function selfQuery(id: string): string {
-  if (!/^Q\d+$/.test(id)) throw new ProviderError("config", `Ungültige Wikidata-Kennung: ${id}`);
+  if (!/^Q\d+$/.test(id)) throw new ProviderError("config", `Ungültige Wikidata-Kennung: ${id}`, undefined, { code: "bad-id", params: { id } });
   return `SELECT ${FIELDS} WHERE { BIND(wd:${id} AS ?item) ${DETAILS} } LIMIT 4`;
 }
 

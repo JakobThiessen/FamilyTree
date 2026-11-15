@@ -6,7 +6,8 @@
   import type { TreeData } from "../core";
   import type { ImportResult } from "../import/gedcomImport";
   import { parseBackup, serializeBackup } from "../import/backup";
-  import { fmt, t, tn } from "./lang.svelte";
+  import { fmt, i18n, t, tn } from "./lang.svelte";
+  import { errorText, issueText, warningText } from "./messages";
   import { importFileInWorker } from "../workers/importClient";
   import type { TreeMeta, TreeStore } from "../storage";
 
@@ -38,7 +39,7 @@
   let result = $state.raw<ImportResult | null>(null);
   let fileName = $state("");
   let saveName = $state("");
-  let issues = $state<string[]>([]);
+  let issues = $state<{ code: string; message: string; params?: Record<string, string | number> }[]>([]);
   let info = $state("");
 
   export function open() {
@@ -59,16 +60,16 @@
       const r = await importFileInWorker(file);
       fileName = file.name;
       saveName = file.name.replace(/\.[^.]+$/, "") || t("import.defaultName");
-      issues = new FamilyGraph(r.data).validate().map((i) => `${i.code}: ${i.message}`);
+      issues = new FamilyGraph(r.data).validate().map((i) => ({ code: i.code, message: i.message, params: i.params }));
       result = r;
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = errorText(e, i18n.lang);
     } finally {
       busy = false;
     }
   }
 
-  const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+  const errText = (e: unknown) => errorText(e, i18n.lang);
 
   function showUnsaved() {
     if (!result) return;
@@ -183,7 +184,7 @@
       <details open={result.warnings.length <= 10}>
         <summary class="warn">{tn("import.warnings", result.warnings.length)}</summary>
         <ul class="list">
-          {#each result.warnings.slice(0, 200) as w}<li>{w.line ? t("import.line", { line: w.line }) : ""}{w.message}</li>{/each}
+          {#each result.warnings.slice(0, 200) as w}<li>{w.line ? t("import.line", { line: w.line }) : ""}{warningText(w, i18n.lang)}</li>{/each}
         </ul>
         {#if result.warnings.length > 200}<p class="dim">{t("import.moreWarnings", { n: result.warnings.length - 200 })}</p>{/if}
       </details>
@@ -194,7 +195,7 @@
     {#if issues.length}
       <details>
         <summary class="warn">{tn("import.issues", issues.length)}</summary>
-        <ul class="list">{#each issues.slice(0, 200) as i}<li>{i}</li>{/each}</ul>
+        <ul class="list">{#each issues.slice(0, 200) as i}<li>{i.code}: {issueText(i, i18n.lang)}</li>{/each}</ul>
       </details>
     {/if}
 

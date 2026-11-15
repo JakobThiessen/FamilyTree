@@ -12,4 +12,4 @@ export type LayoutRequest =
 
 export type LayoutResponse =
   | { id: number; ok: true; result?: LayoutResult }
-  | { id: number; ok: false; error: string };
+  | { id: number; ok: false; error: string; code?: string; params?: Record<string, string | number> };

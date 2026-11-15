@@ -4,6 +4,37 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt (Nachfolgearbeiten nach M9, Quellenangabe)
+- Inspirationsquelle (Video von Niklas Steenfatt, 6:00–7:22) mit Link im `README.md` (Abschnitt „Inspiration“), `docs/UI-KONZEPT.md` und `docs/memory.md`
+
+### Geändert (Nachfolgearbeiten nach M9, README-Bilder)
+- Die vier Aufnahmen in `docs/screenshots/` neu erstellt (ohne Reiter „Forschung/Quellen“, mit neuem Filterpanel und der Natural-Earth-Karte); Bildunterschriften in `README.md` angepasst
+
+### Hinzugefügt (Nachfolgearbeiten nach M9, Schritt 5: restliche Texte DE/EN, D37)
+- Kern liefert Meldungen als Code + Parameter neben dem deutschen Text: GEDCOM-Hinweise (14 Codes), `validate()` (`params`), Dateiformat-/Backup-Fehler (`TreeFormatError.code`), Anbieterfehler (`ProviderError.detail`), Dublettengründe (`reasonCodes`), Worker-Fehler (`CodedError`), `TreeNotFoundError`
+- `src/ui/messages.ts` übersetzt sie (`warningText`, `issueText`, `errorText`, `reasonText`, `disclosureText`); 69 neue Schlüssel in `de.ts` und `en.ts`; Import-Dialog, Online-Dialog, Karte, Stammbaum und Speicherfehler nutzen sie
+- `adoptBatch(…, { lang })`: Vermerk „Übernommen aus …“ und Hinweise auf Deutsch oder Englisch; der Online-Dialog übergibt die Sprache
+- Tests: neue `tests/ui/messages.test.ts` (Codes ↔ deutscher Text, Englisch, Fehler, Dubletten, `lang`), insgesamt 249 Tests grün
+- Im Browser geprüft (EN): Import einer fehlerhaften GEDCOM-Datei zeigt englische Hinweise mit Zeilennummern
+
+### Geändert (Nachfolgearbeiten nach M9, Schritt 4: Weltkarte aus Natural Earth)
+- `src/ui/worldMap.ts` wird jetzt von `scripts/build-world-map.mjs` aus Natural Earth 1:50m erzeugt (352 Landringe, 28 große Seen, 95 kB; vorher 6 kB handgebaut, grob). Gleiche Schnittstelle (`LAND`, `INLAND_SEAS`, `MAP_BOUNDS`), `MapView.svelte` unverändert
+- D36 (Quelle, Lizenz, Größe), `LIZENZ.md` aktualisiert; keine neue Abhängigkeit
+- Im Browser geprüft: `migration.json` und 50.000-Baum, Lebenswege laufen weiter über die Datumsgrenze (D35)
+
+### Geändert (Nachfolgearbeiten nach M9, Schritt 3: Orte im Testbaum)
+- `scripts/generate-large-tree.mjs`: Geburts- und Sterborte (20 echte Städte mit Koordinaten direkt am Ort, wie bei GEDCOM `MAP`; Auswanderung nach Übersee, auch über die Datumsgrenze), Sterbejahr für etwa zwei Drittel; Linien sterben nicht mehr aus (kleine Generationen bekommen mehr Kinder). Der Baum ist dadurch nicht mehr derselbe wie bei der Gesamtprüfung (15,5 MB statt kleiner)
+- `example/performance/README.md` korrigiert (erzeugt nur `.json`)
+- Im Browser geprüft: Karte mit „Alle Personen“, 20 Orte, 50.000 Lebenswege, Marken auch in Neuseeland und Hawaii; Wechsel dauert etwa 2–3 s
+
+### Hinzugefügt (Nachfolgearbeiten nach M9, Schritt 2: Filter zurücksetzen)
+- Filterpanel (`TreeViewer.svelte`): Knopf „Zurücksetzen“ (Standard: Familie, Tiefe 2/2, unbestätigt und unbekannt sichtbar; ausgegraut, solange nichts geändert ist) und „Ganzer Baum“ (Ansicht „Alle“, Tiefe 30, alle Schalter an)
+- Bei Bäumen über 3.000 Personen begrenzt „Ganzer Baum“ die Tiefe auf 6 und zeigt einen Hinweis (Leistung, D22); Texte DE/EN (`viewer.reset*`, `viewer.whole*`)
+- Im Browser geprüft: `migration.json` (7 → 8 → 7 Personen) und 50.000-Personen-Baum (Hinweis, 17 Karten, Layout 2,7 ms)
+
+### Entfernt (Nachfolgearbeiten nach M9, Schritt 1)
+- Deaktivierte Reiter „Forschung“ und „Quellen“ samt Texten (`app.tab.research*`, `app.tab.sources*`) aus `App.svelte`, `de.ts`, `en.ts`; Quellen am Datenmodell, im GEDCOM-Import und in den Personendetails bleiben unverändert
+
 ### Hinzugefügt (M9, Schritt 4: Barrierefreiheit, Mobile)
 - Zeichenfläche per Tastatur (Pfeile, +/-, 0), Textalternative (Personenliste) und Live-Ansage bei Fokuswechsel, Skip-Link, `<main>`, sichtbare Fokusringe, `aria-activedescendant` in der Suche (D35)
 - `prefers-reduced-motion`: keine Übergänge, keine Kamerafahrt (`TreeView.showFocus`, eine Zeile)

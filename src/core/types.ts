@@ -114,3 +114,12 @@ export interface ViewRequest {
   down: number;
   mode: "direct" | "family" | "all";
 }
+
+/**
+ * Meldung als Code plus Parameter. Der Kern liefert neben dem (deutschen) Text auch diese Form,
+ * damit die Oberfläche sie in der gewählten Sprache anzeigen kann (D37). Schlüssel in `src/ui/locales`.
+ */
+export interface MessageRef {
+  code: string;
+  params?: Record<string, string | number>;
+}

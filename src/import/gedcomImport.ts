@@ -26,7 +26,11 @@ import { parseGedcomDate } from "./gedcomDate";
 import { child, childrenOf, childValue, parseGedcomText, pointer, type GedcomNode } from "./gedcomParser";
 
 export interface ImportWarning {
+  /** deutscher Text (Rückfall) */
   message: string;
+  /** Code und Parameter für die Übersetzung (UI: `warn.<code>`) */
+  code?: string;
+  params?: Record<string, string | number>;
   /** Zeilennummer in der GEDCOM-Datei, falls bekannt */
   line?: number;
 }
@@ -68,8 +72,8 @@ class Importer {
   private notesByXref = new Map<string, string>();
   private unionByXref = new Map<string, Union>();
 
-  warn(message: string, node?: GedcomNode): void {
-    this.warnings.push(node ? { message, line: node.line } : { message });
+  warn(code: string, params: Record<string, string | number>, message: string, node?: GedcomNode): void {
+    this.warnings.push(node ? { message, code, params, line: node.line } : { message, code, params });
   }
 
   run(records: GedcomNode[]): void {
@@ -104,7 +108,7 @@ class Importer {
       if (ptr) {
         src = this.sourceByXref.get(ptr);
         if (!src) {
-          this.warn(`Quelle @${ptr}@ nicht gefunden.`, s);
+          this.warn("source-missing", { ptr }, `Quelle @${ptr}@ nicht gefunden.`, s);
           continue;
         }
       } else if (s.value.trim()) {
@@ -154,7 +158,7 @@ class Importer {
     if (dateText) {
       // Unlesbare Daten bleiben als Freitext erhalten (kind "about" ohne Jahr, siehe formatFuzzyDate).
       const parsed = parseGedcomDate(dateText);
-      if (!parsed) this.warn(`Datum nicht lesbar, als Text übernommen: "${dateText}"`, node);
+      if (!parsed) this.warn("date-unreadable", { text: dateText }, `Datum nicht lesbar, als Text übernommen: "${dateText}"`, node);
       ev.date = parsed ?? { kind: "about", text: dateText };
     }
     const place = this.place(node);
@@ -169,7 +173,7 @@ class Importer {
     const ptr = pointer(n.value);
     if (ptr) {
       const t = this.notesByXref.get(ptr);
-      if (t === undefined) this.warn(`Notiz @${ptr}@ nicht gefunden.`, n);
+      if (t === undefined) this.warn("note-missing", { ptr }, `Notiz @${ptr}@ nicht gefunden.`, n);
       return t?.trim() || undefined;
     }
     return n.value.trim() || undefined;
@@ -178,8 +182,8 @@ class Importer {
   // ---- Personen ----
 
   private addPerson(r: GedcomNode): void {
-    if (!r.xref) return this.warn("INDI ohne Kennung übersprungen.", r);
-    if (this.personByXref.has(r.xref)) return this.warn(`Doppelte Personen-Kennung @${r.xref}@, zweite ignoriert.`, r);
+    if (!r.xref) return this.warn("indi-no-id", {}, "INDI ohne Kennung übersprungen.", r);
+    if (this.personByXref.has(r.xref)) return this.warn("indi-duplicate", { xref: r.xref }, `Doppelte Personen-Kennung @${r.xref}@, zweite ignoriert.`, r);
 
     const sexValue = childValue(r, "SEX")?.toUpperCase();
     const sex: Sex = sexValue === "M" ? "M" : sexValue === "F" ? "F" : "U";
@@ -218,8 +222,8 @@ class Importer {
   // ---- Familien / Unions ----
 
   private addUnion(r: GedcomNode): void {
-    if (!r.xref) return this.warn("FAM ohne Kennung übersprungen.", r);
-    if (this.unionByXref.has(r.xref)) return this.warn(`Doppelte Familien-Kennung @${r.xref}@, zweite ignoriert.`, r);
+    if (!r.xref) return this.warn("fam-no-id", {}, "FAM ohne Kennung übersprungen.", r);
+    if (this.unionByXref.has(r.xref)) return this.warn("fam-duplicate", { xref: r.xref }, `Doppelte Familien-Kennung @${r.xref}@, zweite ignoriert.`, r);
 
     const partnerIds: string[] = [];
     for (const tag of ["HUSB", "WIFE"]) {
@@ -228,7 +232,7 @@ class Importer {
       const ptr = pointer(n.value);
       const p = ptr ? this.personByXref.get(ptr) : undefined;
       if (p) partnerIds.push(p.id);
-      else this.warn(`${tag} verweist auf unbekannte Person "${n.value}" in @${r.xref}@.`, n);
+      else this.warn("fam-unknown-person", { tag, value: n.value, xref: r.xref }, `${tag} verweist auf unbekannte Person "${n.value}" in @${r.xref}@.`, n);
     }
 
     const children: ChildLink[] = [];
@@ -236,7 +240,7 @@ class Importer {
       const ptr = pointer(c.value);
       const p = ptr ? this.personByXref.get(ptr) : undefined;
       if (!p) {
-        this.warn(`CHIL verweist auf unbekannte Person "${c.value}" in @${r.xref}@.`, c);
+        this.warn("fam-unknown-child", { value: c.value, xref: r.xref }, `CHIL verweist auf unbekannte Person "${c.value}" in @${r.xref}@.`, c);
         continue;
       }
       if (children.some((x) => x.personId === p.id)) continue;
@@ -244,7 +248,7 @@ class Importer {
     }
 
     if (partnerIds.length === 0 && children.length === 0) {
-      return this.warn(`Familie @${r.xref}@ ohne Partner und Kinder übersprungen.`, r);
+      return this.warn("fam-empty", { xref: r.xref }, `Familie @${r.xref}@ ohne Partner und Kinder übersprungen.`, r);
     }
 
     const union: Union = {
@@ -284,7 +288,7 @@ class Importer {
         if (!link) {
           link = { personId: person.id, kind: "biological" };
           union.children.push(link);
-          this.warn(`@${r.xref}@ nennt Familie @${ptr}@ als Eltern, dort fehlt aber CHIL. Ergänzt.`, famc);
+          this.warn("famc-missing-chil", { xref: r.xref ?? "", ptr: ptr ?? "" }, `@${r.xref}@ nennt Familie @${ptr}@ als Eltern, dort fehlt aber CHIL. Ergänzt.`, famc);
         }
         const pedi = childValue(famc, "PEDI")?.toLowerCase();
         const kind: ChildLinkKind | undefined =
@@ -337,9 +341,9 @@ export function importGedcom(input: string | Uint8Array): ImportResult {
 
   const { records, warnings: parseWarnings } = parseGedcomText(text);
   const imp = new Importer();
-  for (const w of parseWarnings) imp.warnings.push({ message: w.message, line: w.line });
+  for (const w of parseWarnings) imp.warnings.push({ message: w.message, line: w.line, code: w.code, params: w.params });
   if (!records.some((r) => r.tag === "HEAD") && records.length > 0) {
-    imp.warn("Kopfzeile (HEAD) fehlt, ist das wirklich eine GEDCOM-Datei?");
+    imp.warn("head-missing", {}, "Kopfzeile (HEAD) fehlt, ist das wirklich eine GEDCOM-Datei?");
   }
   imp.run(records);
 

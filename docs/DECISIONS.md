@@ -189,7 +189,7 @@ Ersetzt in D23 die **Linienführung** (Sammelschienen und Spuren sind nur noch Z
 - **Sprachwahl:** Umschalter in der Kopfleiste; gespeichert im `localStorage` (`familytree.lang.v1`), sonst Browsersprache (`en*` → EN), sonst Deutsch. `<html lang>` folgt der Wahl (Bildschirmleser).
 - **Kern bleibt rein:** `formatFuzzyDate(d, lang = "de")` und `describeRelationship`/`bloodRelationLabel` (`RelationOptions.lang`, englische Verwandtschaftsbezeichnungen, `Half-`, `1st cousin, once removed`) bekommen einen optionalen Sprachparameter; Standard bleibt Deutsch, die bestehenden Tests gelten unverändert. `TimelineMarker.who` liefert den Namen, damit die Oberfläche den Satz selbst baut. `describePerson(..., lang)` übersetzt Ereignisse, Status, Partnerschaften.
 - **Umschalten ohne Neuaufbau:** Der Stammbaum bleibt gemountet; `TreeView.refreshLabels()` (neu, 4 Zeilen in `src/render`) leert den Rollen-Zwischenspeicher und baut die Szene neu. Ahnen, Zeitleiste und Karte werden per `{#key i18n.lang}` neu aufgebaut. Der Name für Personen ohne Namen („Unbekannt“) kommt aus `setUnknownName` in `render/style.ts`.
-- **Noch deutsch (bekannt):** Hinweise des GEDCOM-Imports und Prüfmeldungen (`validate()`), Offenlegungstext und Hinweise der Online-Quellen (`provider.disclosure`, Übernahme-Notizen), Fehlermeldungen von Browser/Netz, die Dokumentation. SVG-Export und Druck nutzen den Namen des Baums, sonst keine Texte außer „Fokus:“ (übersetzt).
+- **Noch deutsch (bekannt, seit D37 übersetzt):** Hinweise des GEDCOM-Imports und Prüfmeldungen (`validate()`), Offenlegungstext und Hinweise der Online-Quellen (`provider.disclosure`, Übernahme-Notizen), Fehlermeldungen von Netz/Anbietern; weiter deutsch: Meldungen des Browsers, die Dokumentation. SVG-Export und Druck nutzen den Namen des Baums, sonst keine Texte außer „Fokus:“ (übersetzt).
 - **Keine neue Abhängigkeit.**
 
 ## D35 – Barrierefreiheit und Mobile (M9, Schritt 4, 2026-11-14)
@@ -201,3 +201,18 @@ Ersetzt in D23 die **Linienführung** (Sammelschienen und Spuren sind nur noch Z
 - **Nicht gemacht / offen:** Kein Test mit einem echten Bildschirmleser (NVDA/VoiceOver) und keine automatische Prüfung (axe); Fächer-/Kartenmarken bleiben für Tastatur nur über die Liste erreichbar; Zeitleiste hat keine Tabellenalternative (Namen links sind Knöpfe). Die Weltkarte selbst ist weiter grob.
 - **Keine neue Abhängigkeit.**
 
+
+## D36 – Weltkarte aus Natural Earth (2026-11-15)
+- **Kontext:** Die handgebaute Karte (D31) war sehr grob (6 kB, wenige Punkte je Kontinent).
+- **Entscheidung:** Küstenlinien aus **Natural Earth** (https://www.naturalearthdata.com/), Maßstab **1:50m**, Ebenen `ne_50m_land` und `ne_50m_lakes` (GeoJSON, Spiegel `nvkelso/natural-earth-vector`). Natural Earth ist **gemeinfrei** (public domain), Namensnennung freiwillig; Hinweis in `LIZENZ.md`.
+- **Wie:** Das Skript `scripts/build-world-map.mjs` (einmalig, Node, keine Bibliothek) nimmt nur Außenringe, lässt Antarktis (außerhalb des Ausschnitts) und Inseln unter 0,6° weg, vereinfacht mit Douglas-Peucker (0,12°), rundet auf 0,1° und schreibt `src/ui/worldMap.ts` mit Ringen als Text `"lon,lat lon,lat …"`. Beim Laden wird er einmal in Punktfelder umgewandelt. Ergebnis: 352 Landringe, 28 Seen ab 4 Quadratgrad (Kaspisches Meer, Große Seen, Viktoriasee, Baikal …), 95 kB (ca. 25 kB gezippt). 1:110m wäre kleiner, aber zu eckig beim Hineinzoomen.
+- **Datumsgrenze:** Natural Earth teilt Landmassen bei ±180°. Die Schnittstelle (`LAND`, `INLAND_SEAS`, `MAP_BOUNDS`) und `MapView.svelte` blieben unverändert; die Lebenswege über den 180. Längengrad (D35) funktionieren weiter.
+- **Folgen:** Die Datei ist generiert und wird eingecheckt (offline, kein Download zur Laufzeit). Die Rohdaten liegen nicht im Repository; zum Neuerzeugen die beiden GeoJSON-Dateien laden und das Skript mit dem Ordner aufrufen. **Keine neue Abhängigkeit.**
+
+## D37 – Meldungen des Kerns übersetzbar (Nachfolge M9, 2026-11-15)
+- **Kontext:** D34 ließ GEDCOM-Hinweise, `validate()`-Meldungen, Anbieter-Hinweise und Fehlertexte deutsch. `src/core` darf keine UI importieren.
+- **Entscheidung:** Der Kern liefert **Code + Parameter** neben dem deutschen Text (Rückfall, Tests, Konsole): `ImportWarning.code/params`, `ValidationIssue.params`, `TreeFormatError.code/params`, `ProviderError.detail`, `DuplicateCandidate.reasonCodes`, `CodedError` (Worker). Die Oberfläche übersetzt in `src/ui/messages.ts` (`warningText`, `issueText`, `errorText`, `reasonText`, `disclosureText`) über die Schlüsselgruppen `warn.*`, `issue.*`, `error.*`, `provider.error.*`, `dup.*`, `online.disclosure.*` in `locales/de.ts` und `en.ts`. Unbekannter Code = deutscher Text.
+- **Gespeicherte Texte:** Der Vermerk „Übernommen aus …“ und die Hinweise von `adoptBatch` werden mit den Daten gespeichert; sie folgen dem Parameter `lang` (Standard Deutsch), wie `formatFuzzyDate`.
+- **Prüfung:** `tests/ui/messages.test.ts` prüft, dass die deutsche Übersetzung jedes Codes dem Kerntext entspricht (Schlüssel und Texte bleiben so synchron); Parität DE/EN in `tests/ui/i18n.test.ts`.
+- **Bleibt:** Fehlermeldungen des Browsers selbst (z. B. IndexedDB, `DOMException`) erscheinen in der Sprache des Browsers. Die Dokumentation bleibt deutsch.
+- **Keine neue Abhängigkeit.**

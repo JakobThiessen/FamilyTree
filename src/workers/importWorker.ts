@@ -5,6 +5,7 @@
  */
 import { importFileContent } from "../import/importFile";
 import type { ImportRequest, ImportResponse } from "./importMessages";
+import { errorCode } from "./workerError";
 
 const ctx = self as unknown as {
   onmessage: ((e: MessageEvent<ImportRequest>) => void) | null;
@@ -16,6 +17,6 @@ ctx.onmessage = (e) => {
     const result = importFileContent(e.data.name, new Uint8Array(e.data.buffer));
     ctx.postMessage({ ok: true, result });
   } catch (err) {
-    ctx.postMessage({ ok: false, error: err instanceof Error ? err.message : String(err) });
+    ctx.postMessage({ ok: false, error: err instanceof Error ? err.message : String(err), ...errorCode(err) });
   }
 };

@@ -79,7 +79,7 @@ export function createFamilySearchProvider(opts: FamilySearchOptions = {}): Prov
     needsKey: true,
     disclosure: "Gesendet werden Name und Jahre sowie Ihr Zugriffstoken an api.familysearch.org.",
     async search(query, ctx) {
-      if (!opts.accessToken) throw new ProviderError("config", "FamilySearch braucht ein Zugriffstoken.");
+      if (!opts.accessToken) throw new ProviderError("config", "FamilySearch braucht ein Zugriffstoken.", undefined, { code: "needs-token" });
       if (!query.surname?.trim() && !query.givenNames?.trim()) return [];
       const json = (await requestJson(
         withParams(`${base}/platform/tree/search`, {
@@ -93,7 +93,7 @@ export function createFamilySearchProvider(opts: FamilySearchOptions = {}): Prov
         { headers: { Accept: "application/x-gedcomx-atom+json", Authorization: `Bearer ${opts.accessToken}` } },
         "FamilySearch",
       )) as { entries?: { content?: { gedcomx?: { persons?: GxPerson[] } } }[] };
-      if (!json || typeof json !== "object") throw new ProviderError("format", "FamilySearch-Antwort nicht lesbar.");
+      if (!json || typeof json !== "object") throw new ProviderError("format", "FamilySearch-Antwort nicht lesbar.", undefined, { code: "unreadable", params: { service: "FamilySearch" } });
       const out: ExternalPerson[] = [];
       for (const e of json.entries ?? []) {
         const p = e.content?.gedcomx?.persons?.[0];
@@ -103,7 +103,7 @@ export function createFamilySearchProvider(opts: FamilySearchOptions = {}): Prov
       return out;
     },
     async fetchRelatives() {
-      throw new ProviderError("unsupported", "Verwandte von FamilySearch abzurufen ist noch nicht umgesetzt.");
+      throw new ProviderError("unsupported", "Verwandte von FamilySearch abzurufen ist noch nicht umgesetzt.", undefined, { code: "relatives-unsupported" });
     },
   };
 }

@@ -75,7 +75,7 @@ Konzept: [UI-KONZEPT.md](UI-KONZEPT.md), Schritte 0–2. Reihenfolge danach: Ahn
 - [x] M9a Ahnen: Ahnentafel mit Sosa-Nummern, Ahnenschwund, Inzuchtkoeffizient (D29; Fächerdiagramm offen)
 - [x] M9b Zeitleiste: `src/core/timeline.ts`, Lebensbalken, unscharfe Daten (D30)
 - [x] M9c Karte: Orte als Liste, Offline-Weltkarte (handgebaut, grob), Lebenswege, Orte per Wikidata auf Auslösung (D31)
-- [ ] Optional: Forschung, Quellen
+- [x] Reiter Forschung und Quellen entfallen (Nutzer braucht sie nicht; Quellen bleiben im Datenmodell und in den Personendetails)
 
 ## M9 – Feinschliff ✅ (abgenommen 2026-11-14, PWA bewusst zurückgestellt)
 Reihenfolge (mit Nutzer abgestimmt): Backup, Export, DE/EN, Barrierefreiheit/Mobile, PWA.
@@ -85,6 +85,13 @@ Reihenfolge (mit Nutzer abgestimmt): Backup, Export, DE/EN, Barrierefreiheit/Mob
 - [x] Schritt 4: Barrierefreiheit, Mobile (inkl. Karte über den 180.-Längengrad, D35; ohne Test mit echtem Bildschirmleser)
 - [ ] Schritt 5: optional PWA (offline) – zurückgestellt, nicht Teil der Abnahme
 - [x] Gesamtprüfung mit 50.000 Personen (Ergebnisse in memory.md)
+
+## Nachfolgearbeiten nach M9 (ab 2026-11-15)
+- [x] Reiter Forschung/Quellen entfernt
+- [x] Filter zurücksetzen / ganzer Baum
+- [x] Orte im 50.000-Personen-Testbaum
+- [x] Weltkarte aus Natural Earth (D36)
+- [x] Restliche deutsche Texte übersetzen (D37)
 
 ## Offene Fragen
 - Soll später ein Mehrbenutzer-Betrieb oder Sync möglich sein? (Aktuell: nein, lokal)

@@ -7,4 +7,4 @@ export interface ImportRequest {
   buffer: ArrayBuffer;
 }
 
-export type ImportResponse = { ok: true; result: ImportResult } | { ok: false; error: string };
+export type ImportResponse = { ok: true; result: ImportResult } | { ok: false; error: string; code?: string; params?: Record<string, string | number> };

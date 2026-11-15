@@ -20,7 +20,7 @@ import type {
   TreeData,
   Union,
 } from "../core/types";
-import { refKey } from "./types";
+import { ProviderError, refKey } from "./types";
 import type { ExternalEvent, ExternalPerson, ImportBatch } from "./types";
 
 export interface AdoptOptions {
@@ -28,6 +28,8 @@ export interface AdoptOptions {
   linkTo?: PersonId;
   /** Eltern, Partner und Kinder aus dem Treffer mitnehmen (Standard: ja) */
   includeRelatives?: boolean;
+  /** Sprache des Vermerks an der Person (wird mit den Daten gespeichert), Standard Deutsch */
+  lang?: "de" | "en";
 }
 
 export interface AdoptResult {
@@ -86,7 +88,7 @@ export function adoptBatch(base: TreeData, batch: ImportBatch, opts: AdoptOption
   const sourceByRef = new Map<string, string>();
   for (const s of base.sources) for (const r of s.externalRefs ?? []) sourceByRef.set(refKey(r), s.id);
 
-  if (opts.linkTo && !persons.has(opts.linkTo)) throw new Error(`Person ${opts.linkTo} nicht im Baum.`);
+  if (opts.linkTo && !persons.has(opts.linkTo)) throw new ProviderError("config", `Person ${opts.linkTo} nicht im Baum.`, undefined, { code: "person-not-in-tree", params: { id: opts.linkTo } });
 
   /** Quelle zur externen Person (einmal je Verweis, Wiederverwendung bei erneuter Übernahme). */
   const sourceFor = (ext: ExternalPerson): string => {
@@ -111,8 +113,9 @@ export function adoptBatch(base: TreeData, batch: ImportBatch, opts: AdoptOption
       : undefined;
 
   const note = (ext: ExternalPerson) =>
-    `Übernommen aus ${label(ext.ref.system)} (vermutet, nicht geprüft): ${ext.url}` +
-    (ext.summary ? ` – ${ext.summary}` : "");
+    (opts.lang === "en"
+      ? `Adopted from ${label(ext.ref.system)} (assumed, not verified): ${ext.url}`
+      : `Übernommen aus ${label(ext.ref.system)} (vermutet, nicht geprüft): ${ext.url}`) + (ext.summary ? ` – ${ext.summary}` : "");
 
   let addedPersons = 0;
   let reusedPersons = 0;
@@ -164,7 +167,7 @@ export function adoptBatch(base: TreeData, batch: ImportBatch, opts: AdoptOption
 
   const extByKey = new Map(batch.people.map((p) => [refKey(p.ref), p]));
   const root = extByKey.get(refKey(batch.root));
-  if (!root) throw new Error("Der Treffer enthält seine Wurzelperson nicht.");
+  if (!root) throw new ProviderError("format", "Der Treffer enthält seine Wurzelperson nicht.", undefined, { code: "root-missing" });
   const rootId = resolve(root, true);
   if (includeRelatives) for (const p of batch.people) resolve(p, false);
 
@@ -179,7 +182,7 @@ export function adoptBatch(base: TreeData, batch: ImportBatch, opts: AdoptOption
       const partnerIds = eu.partners.map((r) => idOf.get(refKey(r)));
       const childIds = eu.children.map((r) => idOf.get(refKey(r)));
       if (partnerIds.some((x) => !x) || childIds.some((x) => !x)) {
-        notes.push("Eine Partnerschaft wurde übersprungen, weil die Quelle beteiligte Personen nicht lieferte.");
+        notes.push(opts.lang === "en" ? "A partnership was skipped because the source did not supply the people involved." : "Eine Partnerschaft wurde übersprungen, weil die Quelle beteiligte Personen nicht lieferte.");
         continue;
       }
       const partners = partnerIds as PersonId[];
@@ -208,7 +211,11 @@ export function adoptBatch(base: TreeData, batch: ImportBatch, opts: AdoptOption
         if (target.children.some((c) => c.personId === kid)) continue;
         const other = bioParent.get(kid);
         if (other && other !== target.id) {
-          notes.push(`Kind ${kid} hat schon andere Eltern im Baum; die Verknüpfung wurde nicht ergänzt.`);
+          notes.push(
+            opts.lang === "en"
+              ? `Child ${kid} already has other parents in the tree; the link was not added.`
+              : `Kind ${kid} hat schon andere Eltern im Baum; die Verknüpfung wurde nicht ergänzt.`,
+          );
           continue;
         }
         const link: ChildLink = { personId: kid, kind: "biological", status: "assumed" };

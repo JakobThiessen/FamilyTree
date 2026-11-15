@@ -12,6 +12,7 @@
   import { LayoutClient } from "../workers/layoutClient";
   import { fmt, i18n, t } from "./lang.svelte";
   import type { MessageKey } from "./i18n";
+  import { errorText } from "./messages";
 
   let {
     data,
@@ -135,7 +136,7 @@
       error = "";
       layoutStats = result.stats;
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = errorText(e, i18n.lang);
     }
   }
 
@@ -263,6 +264,40 @@
     view?.setOptions({ lineMode, showUnconfirmed, showUnknown });
     refreshPanel();
   }
+
+  // Standardwerte des Filters; „zurücksetzen“ stellt sie wieder her, „ganzen Baum“ hebt alle Einschränkungen auf.
+  const DEFAULTS = { up: 2, down: 2, mode: "family" as ViewRequest["mode"] };
+  /** Ab so vielen Personen im Baum wird „ganzen Baum zeigen“ in der Tiefe begrenzt (Leistung, D22). */
+  const BIG_TREE = 3000;
+  const BIG_TREE_DEPTH = 6;
+  let depthLimited = $state(false);
+
+  const filterChanged = $derived(
+    up !== DEFAULTS.up || down !== DEFAULTS.down || mode !== DEFAULTS.mode || !showUnconfirmed || !showUnknown,
+  );
+
+  function resetFilter() {
+    up = DEFAULTS.up;
+    down = DEFAULTS.down;
+    mode = DEFAULTS.mode;
+    showUnconfirmed = true;
+    showUnknown = true;
+    depthLimited = false;
+    applyOptions();
+    show();
+  }
+
+  /** Ansicht „alles“: alle Personen im Fenster, unbestätigte und unbekannte sichtbar; bei großen Bäumen nur bis Tiefe 6. */
+  function showWholeTree() {
+    const big = data.persons.length > BIG_TREE;
+    depthLimited = big;
+    up = down = big ? BIG_TREE_DEPTH : 30;
+    mode = "all";
+    showUnconfirmed = true;
+    showUnknown = true;
+    applyOptions();
+    show();
+  }
 </script>
 
 <section class="viewer">
@@ -309,6 +344,12 @@
         <label>{t("viewer.ancestors")} <input type="number" min="0" max="30" bind:value={up} onchange={() => { up = clampDepth(up); show(); }} /></label>
         <label>{t("viewer.descendants")} <input type="number" min="0" max="30" bind:value={down} onchange={() => { down = clampDepth(down); show(); }} /></label>
       </div>
+
+      <div class="reset">
+        <button onclick={resetFilter} disabled={!filterChanged} title={t("viewer.reset.title")}>{t("viewer.reset")}</button>
+        <button onclick={showWholeTree} title={t("viewer.whole.title")}>{t("viewer.whole")}</button>
+      </div>
+      {#if depthLimited && mode === "all" && up === BIG_TREE_DEPTH && down === BIG_TREE_DEPTH}<p class="note">{t("viewer.whole.limited", { depth: BIG_TREE_DEPTH, total: data.persons.length })}</p>{/if}
 
       <h3>{t("viewer.lines.title")}</h3>
       <ul class="legend">
@@ -371,6 +412,9 @@
   .depth { display: flex; gap: 0.5rem; font-size: 0.85rem; color: var(--dim); }
   .depth label { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
   .depth input { width: 100%; box-sizing: border-box; }
+  .reset { display: flex; gap: 0.4rem; }
+  .reset button { flex: 1; padding: 0.3rem 0.35rem; font-size: 0.85rem; }
+  .note { margin: 0; font-size: 0.8rem; color: var(--dim); }
   h3 { margin: 0.2rem 0 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
   .legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.88rem; }
   .legend li { display: flex; align-items: center; gap: 0.5rem; }

@@ -14,7 +14,8 @@
   import type { AdoptResult, ExternalPerson, ImportBatch, Provider } from "../providers";
   import { describeLifespan } from "../providers/adopt";
   import { displayName, lifeSpan } from "../render/style";
-  import { t } from "./lang.svelte";
+  import { i18n, t } from "./lang.svelte";
+  import { disclosureText, errorText, reasonText } from "./messages";
 
   let {
     data,
@@ -69,7 +70,7 @@
     if (!dialog.open) dialog.showModal();
   }
 
-  const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+  const errText = (e: unknown) => errorText(e, i18n.lang);
   const personLabel = (id: PersonId) => {
     const p = names.get(id);
     return p ? `${displayName(p)} ${lifeSpan(p)}`.trim() : id;
@@ -120,7 +121,7 @@
       const batch: ImportBatch = withRelatives
         ? await provider.fetchRelatives(hit.ext.ref)
         : { provider: provider.id, root: hit.ext.ref, people: [hit.ext], unions: [] };
-      const res = adoptBatch(data, batch, { linkTo, includeRelatives: withRelatives });
+      const res = adoptBatch(data, batch, { linkTo, includeRelatives: withRelatives, lang: i18n.lang });
       const parts = [t("online.added", { persons: res.addedPersons, unions: res.addedUnions })];
       if (linkTo) parts.unshift(t("online.linked"));
       if (res.possibleDuplicates.length) parts.push(t("online.possibleDupes", { n: res.possibleDuplicates.length }));
@@ -165,7 +166,7 @@
       <label>{t("online.surname")}<input bind:value={surname} required /></label>
       <label class="year">{t("online.birthYear")}<input bind:value={birthYear} inputmode="numeric" pattern="[0-9]*" /></label>
     </div>
-    <p class="dim">{provider.disclosure} {t("online.sendNote")}</p>
+    <p class="dim">{disclosureText(provider.id, i18n.lang, provider.disclosure)} {t("online.sendNote")}</p>
     <button class="primary" disabled={busy || !data}>{busy ? t("online.wait") : t("online.search")}</button>
   </form>
 
@@ -194,7 +195,7 @@
             <ul class="dupes">
               {#each h.dupes as d (d.personId)}
                 <li>
-                  {personLabel(d.personId)} <small>({d.reasons.join(", ")})</small>
+                  {personLabel(d.personId)} <small>({d.reasonCodes.map((r, i) => reasonText(r, i18n.lang, d.reasons[i] ?? r.code)).join(", ")})</small>
                   <button disabled={busy} onclick={() => take(h, d.personId)} title={t("online.same.title")}>{t("online.same")}</button>
                 </li>
               {/each}

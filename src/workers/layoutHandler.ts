@@ -4,6 +4,7 @@
  */
 import { LayoutSession } from "../core/layout";
 import type { LayoutRequest, LayoutResponse } from "./layoutMessages";
+import { errorCode } from "./workerError";
 
 export function createLayoutHandler(): (msg: LayoutRequest) => LayoutResponse {
   let session = new LayoutSession({ persons: [], unions: [] });
@@ -20,7 +21,7 @@ export function createLayoutHandler(): (msg: LayoutRequest) => LayoutResponse {
           return { id: msg.id, ok: true };
       }
     } catch (err) {
-      return { id: msg.id, ok: false, error: err instanceof Error ? err.message : String(err) };
+      return { id: msg.id, ok: false, error: err instanceof Error ? err.message : String(err), ...errorCode(err) };
     }
   };
 }

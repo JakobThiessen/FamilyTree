@@ -2,6 +2,7 @@
 import type { LayoutResult } from "../core/layout";
 import type { TreeData, ViewRequest } from "../core/types";
 import type { LayoutRequest, LayoutResponse } from "./layoutMessages";
+import { CodedError } from "./workerError";
 
 /** `Omit`, das bei Vereinigungstypen jeden Fall einzeln behandelt. */
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
@@ -25,7 +26,7 @@ export class LayoutClient {
       entry.resolve(e.data);
     };
     this.worker.onerror = (e) => {
-      const error = new Error(e.message || "Worker-Fehler");
+      const error = new CodedError(e.message || "Worker-Fehler", e.message ? undefined : "worker-failed");
       for (const entry of this.pending.values()) entry.reject(error);
       this.pending.clear();
     };
@@ -41,7 +42,7 @@ export class LayoutClient {
 
   private async expectOk(p: Promise<LayoutResponse>): Promise<LayoutResult | undefined> {
     const res = await p;
-    if (!res.ok) throw new Error(res.error);
+    if (!res.ok) throw new CodedError(res.error, res.code, res.params);
     return res.result;
   }
 
@@ -53,7 +54,7 @@ export class LayoutClient {
   /** Layout einer Ansicht. Gleicher Fokus und Modus wie zuvor = inkrementell (`result.added` nennt die neuen Karten). */
   async layout(request: ViewRequest): Promise<LayoutResult> {
     const result = await this.expectOk(this.send({ type: "layout", request }));
-    if (!result) throw new Error("Layout-Worker lieferte kein Ergebnis");
+    if (!result) throw new CodedError("Layout-Worker lieferte kein Ergebnis", "layout-no-result");
     return result;
   }
 
@@ -63,7 +64,7 @@ export class LayoutClient {
 
   dispose(): void {
     this.worker.terminate();
-    const error = new Error("Layout-Worker beendet");
+    const error = new CodedError("Layout-Worker beendet", "layout-ended");
     for (const entry of this.pending.values()) entry.reject(error);
     this.pending.clear();
   }

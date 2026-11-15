@@ -85,10 +85,15 @@ export type ProviderErrorKind =
   | "unsupported";
 
 export class ProviderError extends Error {
+  /**
+   * @param message deutscher Text (Rückfall, Tests)
+   * @param detail  Code und Parameter für die Übersetzung in der Oberfläche (`provider.error.<code>`, D37)
+   */
   constructor(
     readonly kind: ProviderErrorKind,
     message: string,
     readonly status?: number,
+    readonly detail?: { code: string; params?: Record<string, string | number> },
   ) {
     super(message);
     this.name = "ProviderError";

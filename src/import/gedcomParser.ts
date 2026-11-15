@@ -17,6 +17,9 @@ export interface GedcomNode {
 export interface ParseWarning {
   line: number;
   message: string;
+  /** Code und Parameter für die Übersetzung (UI: `warn.<code>`) */
+  code?: string;
+  params?: Record<string, string | number>;
 }
 
 const LINE_RE = /^\s*(\d+)\s+(?:@([^@\s]+)@\s+)?([^\s]+)(?: (.*))?$/;
@@ -33,7 +36,7 @@ export function parseGedcomText(text: string): { records: GedcomNode[]; warnings
     if (raw.trim() === "") return;
     const m = raw.match(LINE_RE);
     if (!m) {
-      warnings.push({ line, message: `Zeile nicht lesbar: "${raw.slice(0, 40)}"` });
+      warnings.push({ line, message: `Zeile nicht lesbar: "${raw.slice(0, 40)}"`, code: "line-unreadable", params: { text: raw.slice(0, 40) } });
       return;
     }
     const level = Number(m[1]);
@@ -41,7 +44,7 @@ export function parseGedcomText(text: string): { records: GedcomNode[]; warnings
     const value = m[4] ?? "";
 
     if (level > 0 && !stack[level - 1]) {
-      warnings.push({ line, message: `Level ${level} ohne passenden übergeordneten Eintrag, Zeile übersprungen.` });
+      warnings.push({ line, message: `Level ${level} ohne passenden übergeordneten Eintrag, Zeile übersprungen.`, code: "level-orphan", params: { level } });
       return;
     }
 

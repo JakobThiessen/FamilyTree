@@ -3,7 +3,8 @@
   // Berechnung in src/core/places.ts. Koordinaten fehlen oft (GEDCOM); auf Knopfdruck werden sie bei Wikidata
   // gesucht (nur Ortsnamen gehen raus) und lokal im Browser gemerkt. Solche Orte gelten als „vermutet“.
   import { onDestroy } from "svelte";
-  import { fmt, t, tn } from "./lang.svelte";
+  import { fmt, i18n, t, tn } from "./lang.svelte";
+  import { errorText } from "./messages";
   import { collectPlaces, lifePaths, placeKey, timelinePersonIds, unwrapLongitudes } from "../core";
   import type { Coordinates, FamilyGraph, KnownPlaces, PersonId, TimelineScope } from "../core";
   import { lookupPlaces } from "../providers";
@@ -80,7 +81,7 @@
         progress = { done: ++done, total: batch.length, name };
       });
     } catch (e) {
-      if (!(e instanceof DOMException && e.name === "AbortError")) lookupError = e instanceof Error ? e.message : String(e);
+      if (!(e instanceof DOMException && e.name === "AbortError")) lookupError = errorText(e, i18n.lang);
     } finally {
       saveCache(next); // auch Teilergebnisse behalten
       busy = false;

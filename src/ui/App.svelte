@@ -17,6 +17,7 @@
   import SearchBox from "./SearchBox.svelte";
   import TreeViewer from "./TreeViewer.svelte";
   import { i18n, setLang, t } from "./lang.svelte";
+  import { errorText } from "./messages";
   import { LANGS } from "./i18n";
   import type { Lang } from "./i18n";
   import { describePerson } from "./personInfo";
@@ -72,7 +73,7 @@
       store = await TreeStore.open();
       await refresh();
     } catch (e) {
-      storageError = t("app.storageUnavailable", { error: e instanceof Error ? e.message : String(e) });
+      storageError = t("app.storageUnavailable", { error: errorText(e, i18n.lang) });
     }
   });
 
@@ -92,7 +93,7 @@
       savedId = meta.id;
       await refresh();
     } catch (e) {
-      storageError = t("app.saveFailed", { error: e instanceof Error ? e.message : String(e) });
+      storageError = t("app.saveFailed", { error: errorText(e, i18n.lang) });
     }
   }
 
@@ -116,7 +117,7 @@
         await store.replaceTree(savedId, res.data);
         await refresh();
       } catch (e) {
-        storageError = t("app.saveFailed", { error: e instanceof Error ? e.message : String(e) });
+        storageError = t("app.saveFailed", { error: errorText(e, i18n.lang) });
       }
     }
     startId = res.rootId;
@@ -160,9 +161,6 @@
       {#each TABS as t (t.id)}
         <button class="tab" class:on={tab === t.id} aria-current={tab === t.id ? "page" : undefined} onclick={() => (tab = t.id)}>{t.label}</button>
       {/each}
-      <!-- Optionale Rubriken, später (nach M8): Dublettenvorschläge, Treffer, Quellenliste -->
-      <button class="tab" disabled title={t("app.tab.researchSoon")}>{t("app.tab.research")}</button>
-      <button class="tab" disabled title={t("app.tab.sourcesSoon")}>{t("app.tab.sources")}</button>
     </nav>
     <span class="grow"></span>
     {#if data}<div class="search-slot"><SearchBox {persons} onPick={pick} /></div>{/if}

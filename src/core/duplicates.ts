@@ -33,6 +33,8 @@ export interface DuplicateCandidate {
   level: DuplicateLevel;
   /** Kurze Gründe für die Anzeige, z. B. „Nachname gleich“ */
   reasons: string[];
+  /** gleiche Gründe als Code (+ Zahl) für die Übersetzung (UI: `dup.<code>`) */
+  reasonCodes: { code: string; n?: number }[];
 }
 
 export interface DuplicateOptions {
@@ -118,8 +120,15 @@ function score(
   given: string[],
   e: Entry,
   surnameScore: number,
-): { score: number; reasons: string[] } | null {
-  const reasons: string[] = [surnameScore === 0.3 ? "Nachname gleich" : "Nachname ähnlich"];
+): { score: number; reasons: string[]; reasonCodes: { code: string; n?: number }[] } | null {
+  const reasons: string[] = [];
+  const reasonCodes: { code: string; n?: number }[] = [];
+  const why = (code: string, text: string, n?: number) => {
+    reasons.push(text);
+    reasonCodes.push(n === undefined ? { code } : { code, n });
+  };
+  if (surnameScore === 0.3) why("surname-same", "Nachname gleich");
+  else why("surname-similar", "Nachname ähnlich");
   let s = surnameScore;
 
   // Ausschluss: Geschlecht bekannt und verschieden
@@ -128,13 +137,13 @@ function score(
   if (given.length && e.given.length) {
     if (given[0] === e.given[0]) {
       s += 0.3;
-      reasons.push("Vorname gleich");
+      why("given-same", "Vorname gleich");
     } else if (given.some((g) => e.given.includes(g)) || e.given.some((g) => given.includes(g))) {
       s += 0.2;
-      reasons.push("weiterer Vorname gleich");
+      why("given-other", "weiterer Vorname gleich");
     } else if (given[0]![0] === e.given[0]![0] && (given[0]!.length === 1 || e.given[0]!.length === 1)) {
       s += 0.1;
-      reasons.push("Initiale gleich");
+      why("given-initial", "Initiale gleich");
     } else {
       return null; // andere Vornamen: andere Person
     }
@@ -144,15 +153,17 @@ function score(
     const d = Math.abs(q.birthYear - e.birthYear);
     if (d > 5) return null;
     s += d === 0 ? 0.3 : d <= 2 ? 0.2 : 0.1;
-    reasons.push(d === 0 ? "Geburtsjahr gleich" : `Geburtsjahr ±${d}`);
+    if (d === 0) why("birth-same", "Geburtsjahr gleich");
+    else why("birth-diff", `Geburtsjahr ±${d}`, d);
   }
   if (q.deathYear !== undefined && e.deathYear !== undefined) {
     const d = Math.abs(q.deathYear - e.deathYear);
     if (d > 5) return null;
     s += d <= 2 ? (d === 0 ? 0.1 : 0.05) : 0;
-    reasons.push(d === 0 ? "Sterbejahr gleich" : `Sterbejahr ±${d}`);
+    if (d === 0) why("death-same", "Sterbejahr gleich");
+    else why("death-diff", `Sterbejahr ±${d}`, d);
   }
-  return { score: Math.min(1, Math.round(s * 100) / 100), reasons };
+  return { score: Math.min(1, Math.round(s * 100) / 100), reasons, reasonCodes };
 }
 
 /** Bequem für Einzelfälle; für viele Anfragen einmal `new DuplicateFinder(persons)` bauen. */

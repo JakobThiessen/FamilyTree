@@ -73,7 +73,7 @@ Alle Dokumente liegen in [docs/](docs/README.md):
 
 Aufnahmen mit den erfundenen Beispieldaten aus `example/` (keine echten Personen).
 
-**Stammbaum:** Fokusperson, Familienlinien, Filterpanel und Personendetails (`cousin-marriage.json`)
+**Stammbaum:** Fokusperson, Familienlinien, Filterpanel (mit „Zurücksetzen“ und „Ganzer Baum“) und Personendetails (`cousin-marriage.json`)
 
 ![Stammbaum-Ansicht mit Filterpanel und Personendetails](docs/screenshots/stammbaum.jpg)
 
@@ -85,9 +85,13 @@ Aufnahmen mit den erfundenen Beispieldaten aus `example/` (keine echten Personen
 
 ![Zeitleiste mit Lebensbalken](docs/screenshots/zeitleiste.jpg)
 
-**Karte:** Orte und Lebenswege auf der mitgelieferten Offline-Weltkarte (`migration.json`)
+**Karte:** Orte und Lebenswege auf der mitgelieferten Offline-Weltkarte aus Natural-Earth-Daten (`migration.json`)
 
 ![Karte mit Lebenswegen](docs/screenshots/karte.jpg)
+
+## Inspiration
+
+Die Aufteilung der Oberfläche (Reiter, Filterpanel, Familienlinien-Farben, gestrichelte Linie für unbestätigte Verbindungen) ist angelehnt an eine Stammbaum-App aus dem Video von Niklas Steenfatt, Minute 6:00 bis 7:22: https://www.youtube.com/watch?v=6oXBtuLgJNQ&t=360s. Es wurde kein Quellcode übernommen (es ist keiner öffentlich); Code, Darstellung und Datenmodell sind eigenständig.
 
 ## Lizenz
 
