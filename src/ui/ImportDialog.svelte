@@ -10,9 +10,10 @@
   import { errorText, issueText, warningText } from "./messages";
   import { importFileInWorker } from "../workers/importClient";
   import { matchMedia } from "../import/mediaMatch";
-  import { isImageFile, makeThumb } from "./mediaThumbs";
-  import { memoryLookup, storeLookup } from "./mediaLookup";
-  import type { MediaLookup, MediaThumb } from "./mediaLookup";
+  import { isImageFile } from "./mediaThumbs";
+  import { MediaHub } from "./mediaHub";
+  import type { MediaImport } from "./mediaHub";
+  import { mediaPriority } from "../core";
   import type { TreeMeta, TreeStore } from "../storage";
 
   let {
@@ -33,7 +34,7 @@
     /** Nur schließbar, wenn schon ein Baum angezeigt wird */
     canClose: boolean;
     /** Baum anzeigen; `savedId` ist gesetzt, wenn er schon gespeichert ist. */
-    onShow: (data: TreeData, name: string, savedId: string | null, media: MediaLookup | null) => void;
+    onShow: (data: TreeData, name: string, savedId: string | null, media: MediaImport) => void;
     /** Die Liste der gespeicherten Bäume hat sich geändert. */
     onSaved: () => void | Promise<void>;
     /** Ein Backup aller gespeicherten Bäume wurde heruntergeladen. */
@@ -49,47 +50,30 @@
   let issues = $state<{ code: string; message: string; params?: Record<string, string | number> }[]>([]);
   let info = $state("");
 
-  // Fotos (M11, D45): Verweise aus der Datei, vom Nutzer gewählter Ordner, erzeugte Vorschauen
-  let thumbs = $state.raw(new Map<string, MediaThumb>());
+  // Fotos (M11, D45/D46): Verweise aus der Datei, vom Nutzer gewählter Ordner, Zuordnung.
+  // Die Vorschauen entstehen erst NACH dem Öffnen des Baums im Hintergrund (App.svelte).
   let mediaRefs = $state.raw<string[]>([]);
-  let mediaProgress = $state<{ done: number; total: number } | null>(null);
-  let mediaResult = $state<{ found: number; missing: number; ambiguous: number; failed: number } | null>(null);
+  let mediaEntries = $state.raw<[string, File][]>([]);
+  let mediaResult = $state<{ found: number; missing: number; ambiguous: number } | null>(null);
 
   function resetMedia(r: ImportResult | null) {
-    thumbs = new Map();
-    mediaProgress = null;
+    mediaEntries = [];
     mediaResult = null;
     mediaRefs = r ? [...new Set(r.data.persons.flatMap((p) => (p.media ?? []).map((m) => m.file)))] : [];
   }
 
-  /** Fotoordner gewählt: Dateien zuordnen und Vorschauen erzeugen (vier gleichzeitig, bleibt bedienbar). */
-  async function pickPhotos(files: FileList | null) {
-    if (!files || !mediaRefs.length) return;
-    const list = [...files].filter((f) => isImageFile(f.name));
-    const byPath = new Map(list.map((f) => [f.webkitRelativePath || f.name, f]));
+  /** Fotoordner gewählt: Dateien den Verweisen zuordnen (schnell, es wird noch nichts gelesen). */
+  function pickPhotos(files: FileList | null) {
+    if (!files || !result || !mediaRefs.length) return;
+    const byPath = new Map([...files].filter((f) => isImageFile(f.name)).map((f) => [f.webkitRelativePath || f.name, f] as const));
     const m = matchMedia(mediaRefs, [...byPath.keys()]);
-    const todo = [...m.matched];
-    const out = new Map<string, MediaThumb>();
-    let failed = 0;
-    let done = 0;
-    mediaResult = null;
-    mediaProgress = { done, total: todo.length };
-    let next = 0;
-    const worker = async () => {
-      while (next < todo.length) {
-        const [ref, path] = todo[next++]!;
-        try {
-          out.set(ref, await makeThumb(byPath.get(path)!));
-        } catch {
-          failed++;
-        }
-        mediaProgress = { done: ++done, total: todo.length };
-      }
-    };
-    await Promise.all([worker(), worker(), worker(), worker()]);
-    thumbs = out;
-    mediaProgress = null;
-    mediaResult = { found: out.size, missing: m.missing.length, ambiguous: m.ambiguous.length, failed };
+    // Avatarbilder (Ausschnitte, Hauptbilder) zuerst
+    const prio = new Map<string, number>();
+    for (const p of result.data.persons) for (const r of p.media ?? []) prio.set(r.file, Math.min(prio.get(r.file) ?? 9, mediaPriority(r)));
+    mediaEntries = [...m.matched]
+      .sort((x, y) => (prio.get(x[0]) ?? 9) - (prio.get(y[0]) ?? 9))
+      .map(([ref, path]) => [ref, byPath.get(path)!] as [string, File]);
+    mediaResult = { found: m.matched.size, missing: m.missing.length, ambiguous: m.ambiguous.length };
   }
 
   export function open() {
@@ -124,7 +108,7 @@
 
   function showUnsaved() {
     if (!result) return;
-    onShow(result.data, fileName, null, thumbs.size ? memoryLookup(thumbs) : null);
+    onShow(result.data, fileName, null, { hub: new MediaHub(), entries: mediaEntries });
     reset();
   }
 
@@ -133,9 +117,8 @@
     busy = true;
     try {
       const meta = await store.saveTree(saveName.trim() || fileName, result.data);
-      if (thumbs.size) await store.saveMedia(meta.id, [...thumbs].map(([file, th]) => ({ file, ...th })));
       await onSaved();
-      onShow(result.data, meta.name, meta.id, store ? storeLookup(store, meta.id) : null);
+      onShow(result.data, meta.name, meta.id, { hub: new MediaHub(store, meta.id), entries: mediaEntries });
       reset();
     } catch (e) {
       error = t("import.saveFailed", { error: errText(e) });
@@ -156,7 +139,7 @@
     busy = true;
     error = "";
     try {
-      onShow(await store.loadTree(tree.id), tree.name, tree.id, storeLookup(store, tree.id));
+      onShow(await store.loadTree(tree.id), tree.name, tree.id, { hub: new MediaHub(store, tree.id), entries: [] });
       dialog.close();
     } catch (e) {
       error = errText(e);
@@ -257,12 +240,11 @@
       <section class="photos">
         <h3>{t("import.media.title")}</h3>
         <p>{t("import.media.refs", { n: mediaRefs.length })} <small>{t("import.media.hint")}</small></p>
-        <label class="button" class:disabled={busy || !!mediaProgress}>
+        <label class="button" class:disabled={busy}>
           {t("import.media.pick")}
-          <input type="file" multiple webkitdirectory disabled={busy || !!mediaProgress} onchange={(e) => { pickPhotos(e.currentTarget.files); e.currentTarget.value = ""; }} />
+          <input type="file" multiple webkitdirectory disabled={busy} onchange={(e) => { pickPhotos(e.currentTarget.files); e.currentTarget.value = ""; }} />
         </label>
-        {#if mediaProgress}<p role="status">{t("import.media.progress", mediaProgress)}</p>{/if}
-        {#if mediaResult}<p class="ok" role="status">{t("import.media.result", mediaResult)}</p>{/if}
+        {#if mediaResult}<p class="ok" role="status">{t("import.media.result", mediaResult)} {mediaResult.found ? t("import.media.later") : ""}</p>{/if}
       </section>
     {/if}
 

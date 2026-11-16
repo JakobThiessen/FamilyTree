@@ -3,7 +3,7 @@
   // Die Hülle kennt Fokus und Ansicht; Suche und Details leben im Elternteil (App.svelte) und
   // wechseln den Fokus über `focusOn(id)`. Jeder Fokuswechsel meldet sich über `onFocusChange`.
   import { onDestroy, onMount } from "svelte";
-  import { describeRelationship } from "../core";
+  import { avatarRef, describeRelationship } from "../core";
   import type { FamilyGraph } from "../core";
   import type { TreeChanges } from "../core/edit";
   import type { LayoutResult } from "../core/layout";
@@ -14,11 +14,13 @@
   import { fmt, i18n, t } from "./lang.svelte";
   import type { MessageKey } from "./i18n";
   import { errorText } from "./messages";
+  import type { MediaLookup } from "./mediaHub";
 
   let {
     data,
     graph,
     startId,
+    media = null,
     onFocusChange,
     title = "",
   }: {
@@ -27,6 +29,8 @@
     graph: FamilyGraph | null;
     /** Fokus beim Aufbau, sonst die erste Person */
     startId?: PersonId;
+    /** Vorschaubilder für die Fotos in den Avatar-Kreisen (D46) */
+    media?: MediaLookup | null;
     onFocusChange?: (id: PersonId) => void;
     /** Baumname, steht als Überschrift im Export */
     title?: string;
@@ -199,6 +203,19 @@
     }
   }
 
+  /** Kartenbild einer Person: das Avatarbild ihrer Medien als `ImageBitmap` (D46). */
+  async function loadAvatar(personId: PersonId): Promise<ImageBitmap | undefined> {
+    const ref = avatarRef(persons.get(personId)?.media);
+    const blob = ref && media ? await media.icon(ref.file) : undefined;
+    return blob ? createImageBitmap(blob) : undefined;
+  }
+
+  // Im Hintergrund eintreffende Vorschauen: Karten ohne Bild fragen erneut.
+  $effect(() => {
+    const unsub = media?.onChange(() => view?.refreshAvatars());
+    return () => unsub?.();
+  });
+
   onMount(() => {
     client = new LayoutClient();
     view = new TreeView(canvas, {
@@ -216,6 +233,7 @@
       },
       onDraw: (s) => (drawStats = s),
       roleOf,
+      loadAvatar,
     });
     loadData(data);
   });

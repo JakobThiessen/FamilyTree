@@ -10,6 +10,7 @@
  */
 import type { LayoutResult } from "../core/layout";
 import type { Person, PersonId } from "../core/types";
+import { AvatarCache } from "./avatarCache";
 import { Camera } from "./camera";
 import type { Rect } from "./camera";
 import { BADGE, badgeRect, buildScene } from "./scene";
@@ -22,6 +23,10 @@ export const LOD_TEXT = 0.3;
 export const LOD_DETAIL = 0.06;
 /** Ab diesem Zoom steht die Rolle zur Fokusperson auf der Karte (nur wenige Karten sichtbar, Text ist teuer). */
 export const LOD_ROLE = 0.55;
+/** Ab diesem Zoom zeigt der Avatar-Kreis das Foto statt der Initialen (Kreis dann ca. 14 px, D46). */
+export const LOD_AVATAR = 0.4;
+/** So viele Avatarbilder halten wir höchstens dekodiert im Speicher. */
+const AVATAR_CACHE_MAX = 300;
 /** Unter diesem Zoom werden S-Kurven als Gerade gezeichnet (D28). */
 export const LOD_CURVE = 0.12;
 /** Bei mehr Karten fährt die Kamera nicht weich, sondern springt (D28). */
@@ -46,6 +51,8 @@ export interface TreeViewEvents {
   onDraw?: (stats: DrawStats) => void;
   /** Rolle der Person zur Fokusperson („Vater“, „Cousine 1. Grades“ …); wird nur für sichtbare Karten bei starkem Zoom gefragt */
   roleOf?: (personId: PersonId) => string | undefined;
+  /** Kartenbild der Person (kleines Quadrat), oder `undefined`, wenn keins da ist; wird nur für sichtbare Karten bei starkem Zoom gefragt */
+  loadAvatar?: (personId: PersonId) => Promise<ImageBitmap | undefined>;
 }
 
 interface Hit {
@@ -78,6 +85,13 @@ export class TreeView {
   private insetLeft = 0;
   private lastResult: LayoutResult | null = null;
   private roleCache = new Map<PersonId, string>();
+  /** Dekodierte Avatarbilder; lädt nach und zeichnet dann neu (D46) */
+  private readonly avatars = new AvatarCache<ImageBitmap>(
+    (id) => this.events.loadAvatar?.(id) ?? Promise.resolve(undefined),
+    () => this.invalidate(),
+    AVATAR_CACHE_MAX,
+    (b) => b.close(),
+  );
   private background: { h: number; g: CanvasGradient } | null = null;
   private anim: { t0: number; from: [number, number, number]; to: [number, number, number] } | null = null;
 
@@ -115,6 +129,12 @@ export class TreeView {
     this.hover = null;
     this.roleCache.clear();
     if (resetView) this.showFocus(hadScene && this.scene.cards.length <= ANIMATE_MAX_CARDS ? from : undefined);
+    this.invalidate();
+  }
+
+  /** Im Hintergrund sind neue Vorschauen eingetroffen: Karten ohne Bild fragen erneut. */
+  refreshAvatars(): void {
+    this.avatars.retryMissing();
     this.invalidate();
   }
 
@@ -197,6 +217,7 @@ export class TreeView {
 
   dispose(): void {
     this.disposed = true;
+    this.avatars.clear();
     cancelAnimationFrame(this.frame);
     this.resizeObserver.disconnect();
     const c = this.canvas;
@@ -400,6 +421,7 @@ export class TreeView {
     const ctx = this.ctx;
     const text = k >= LOD_TEXT;
     const roles = k >= LOD_ROLE && this.events.roleOf !== undefined;
+    const photos = k >= LOD_AVATAR && this.events.loadAvatar !== undefined;
     ctx.textBaseline = "alphabetic";
     for (const id of ids) {
       const card = scene.cards[id] as SceneCard;
@@ -437,16 +459,26 @@ export class TreeView {
       ctx.arc(ax, n.y, ar, 0, Math.PI * 2);
       ctx.fillStyle = card.color + "30";
       ctx.fill();
+      // Foto statt Initialen, sobald es geladen ist (nur Personen mit Medien fragen den Cache)
+      const photo = photos && this.persons.get(n.personId)?.media?.length ? this.avatars.get(n.personId) : undefined;
+      if (photo) {
+        ctx.save();
+        ctx.clip();
+        ctx.drawImage(photo, ax - ar, n.y - ar, ar * 2, ar * 2);
+        ctx.restore();
+      }
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = card.color;
       ctx.stroke();
 
       if (text) {
-        ctx.fillStyle = card.color;
-        ctx.font = "700 13px system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(card.initials, ax, n.y + 5);
-        ctx.textAlign = "start";
+        if (!photo) {
+          ctx.fillStyle = card.color;
+          ctx.font = "700 13px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(card.initials, ax, n.y + 5);
+          ctx.textAlign = "start";
+        }
 
         const tx = ax + ar + 8;
         const maxChars = Math.max(6, Math.floor((r.maxX - 8 - tx) / 6.2));

@@ -4,6 +4,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Hinzugefügt / Geändert (M11: Vorschauen im Hintergrund, Avatar auf der Karte, D46)
+- Importdialog ordnet den Fotoordner nur zu; der Baum öffnet sofort, `startMediaJob` erzeugt die Vorschauen danach im Hintergrund (Fortschritt in der Kopfleiste, Avatarbilder zuerst, abbrechbar beim Baumwechsel). `MediaHub` (`src/ui/mediaHub.ts`) vereint Arbeitsspeicher und IndexedDB und meldet neue Vorschauen; die Galerie lädt nach.
+- Karten zeigen das Foto im Avatar-Kreis (`avatarRef`: Ausschnitt, Hauptbild, erstes Bild): `AvatarCache` in `src/render`, nur sichtbare Karten ab Zoom 0,4, höchstens 300 Bilder im Speicher, Initialen bis das Bild da ist. Zusätzlich `icon` (128 px) je Bild im Datensatz.
+- Tests 322 → 334 (`media`, `avatarCache`, `mediaHub`). Im Browser geprüft: Baum sofort da, Fortschritt, Gesichter auf den Karten, nach Neuladen aus IndexedDB.
+
 ### Hinzugefügt (M11 Anfang: Fotos aus dem GEDCOM-Import, D44/D45)
 - Datenmodell: `Person.media` (`MediaRef`: `file`, `title`, `format`, `primary`, `cutout`). GEDCOM-Import liest `OBJE` (flache MyHeritage-Form, 5.5-Form, Zeiger auf OBJE-Datensätze), der Export schreibt sie zurück; Re-Import verlustfrei.
 - `src/import/mediaMatch.ts`: `matchMedia` ordnet Verweise den im Browser gewählten Dateien zu (Pfadende, ohne Groß-/Kleinschreibung).

@@ -1,9 +1,10 @@
 <script lang="ts">
   // Fotos einer Person im Detailfenster (M11, D45): Hauptbild groß, weitere als Galerie.
   // Jedes Bild hat einen Alternativtext (Titel, sonst „Foto n von <Name>“). Alles bleibt lokal (Blob-Adressen).
+  import { untrack } from "svelte";
   import type { MediaRef } from "../core";
   import { t } from "./lang.svelte";
-  import type { MediaLookup } from "./mediaLookup";
+  import type { MediaLookup } from "./mediaHub";
 
   let { refs, name, lookup }: { refs: readonly MediaRef[]; name: string; lookup: MediaLookup | null } = $props();
 
@@ -15,31 +16,51 @@
   );
 
   let urls = $state<Record<string, string | null>>({});
+  /** Zählt Meldungen des Hintergrundauftrags; jede lädt die noch fehlenden Bilder erneut. */
+  let arrived = $state(0);
+
+  $effect(() => {
+    const unsub = lookup?.onChange(() => arrived++);
+    return () => unsub?.();
+  });
 
   // Vorschauen laden; Blob-Adressen beim Wechsel der Person und beim Schließen wieder freigeben.
+  // Kommen Bilder im Hintergrund nach (D46), wird nur nachgeladen, was noch fehlt.
   $effect(() => {
+    void arrived;
     const files = refs.map((m) => m.file);
     const l = lookup;
     let cancelled = false;
-    const made: string[] = [];
-    urls = {};
     if (l) {
       for (const f of files) {
+        if (untrack(() => urls[f])) continue;
         l.thumb(f).then((th) => {
           if (cancelled) return;
           if (!th) return void (urls[f] = null);
           const u = URL.createObjectURL(th.thumb);
-          made.push(u);
           urls[f] = u;
         });
       }
     }
     return () => {
       cancelled = true;
-      made.forEach((u) => URL.revokeObjectURL(u));
     };
   });
 
+  // Aufräumen: Adressen freigeben, wenn die Person wechselt oder die Galerie verschwindet.
+  $effect(() => {
+    void refs;
+    return () => {
+      for (const u of Object.values(untrack(() => urls))) if (u) URL.revokeObjectURL(u);
+      urls = {};
+    };
+  });
+
+  /** Läuft der Hintergrundauftrag noch? Dann ist „fehlt“ nur „noch nicht da“. */
+  const loading = () => {
+    void arrived;
+    return !!lookup?.loading;
+  };
   const caption = (m: MediaRef) =>
     [m.title, m.primary ? t("person.media.primary") : "", m.cutout ? t("person.media.cutout") : ""].filter(Boolean).join(" · ");
   const alt = (m: MediaRef, n: number) => m.title || (refs.length > 1 ? t("person.media.altN", { n, name }) : t("person.media.alt", { name }));
@@ -52,7 +73,7 @@
       <li class:main={k === 0}>
         {#if urls[m.file]}
           <img src={urls[m.file]} alt={alt(m, k + 1)} loading="lazy" />
-        {:else if m.file in urls}
+        {:else if urls[m.file] === null && !loading()}
           <span class="missing">{t("person.media.missing", { file: m.file })}</span>
         {:else}
           <span class="missing" aria-hidden="true">…</span>

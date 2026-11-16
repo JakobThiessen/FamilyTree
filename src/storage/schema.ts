@@ -36,6 +36,8 @@ export interface MediaRecord {
   /** `MediaRef.file`, wie im Baum */
   file: string;
   thumb: Blob;
+  /** Kleines quadratisches Bild für die Karte (D46); fehlt bei älteren Datensätzen */
+  icon?: Blob;
   /** Maße der Vorschau */
   width: number;
   height: number;

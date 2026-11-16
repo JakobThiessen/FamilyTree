@@ -23,8 +23,9 @@
   import type { Lang } from "./i18n";
   import { describePerson } from "./personInfo";
   import { loadBackupState, saveBackupState } from "./backupStore";
-  import { storeLookup } from "./mediaLookup";
-  import type { MediaLookup } from "./mediaLookup";
+  import { MediaHub, startMediaJob } from "./mediaHub";
+  import type { MediaImport, MediaJob } from "./mediaHub";
+  import { makeThumb } from "./mediaThumbs";
 
   // Speicher (IndexedDB). Wird beim Start geöffnet; fehlt IndexedDB, läuft die App ohne Speicherung.
   let store = $state.raw<TreeStore | null>(null);
@@ -105,11 +106,35 @@
     treeKey++; // {#key treeKey} unten baut die Ansicht neu auf
   }
 
-  /** Vorschaubilder des angezeigten Baums (M11, D45); `null` = keine geladen */
-  let media = $state.raw<MediaLookup | null>(null);
+  /** Vorschaubilder des angezeigten Baums (M11, D45/D46); `null` = keine */
+  let media = $state.raw<MediaHub | null>(null);
+  let mediaJob: MediaJob | null = null;
+  /** Fortschritt der Vorschauen, die im Hintergrund entstehen (D46) */
+  let mediaProgress = $state<{ done: number; total: number; failed: number } | null>(null);
 
-  function showTree(d: TreeData, name: string, id: string | null, lookup: MediaLookup | null = null) {
-    media = lookup ?? (store && id ? storeLookup(store, id) : null);
+  /** Vorschauen aus den gewählten Dateien im Hintergrund erzeugen; der Baum ist da schon bedienbar. */
+  function startMedia(m: MediaImport) {
+    mediaJob?.cancel();
+    mediaJob = null;
+    mediaProgress = null;
+    media = m.hub;
+    if (!m.entries.length) return;
+    let failed = 0;
+    const job = startMediaJob(m.entries, m.hub, makeThumb, (done, total) => (mediaProgress = { done, total, failed }));
+    mediaJob = job;
+    mediaProgress = { done: 0, total: job.total, failed: 0 };
+    m.hub.setLoading(true);
+    void job.done.then((r) => {
+      m.hub.setLoading(false);
+      if (mediaJob !== job) return; // inzwischen anderer Baum
+      failed = r.failed;
+      mediaProgress = r.failed ? { done: r.done, total: job.total, failed } : null;
+      mediaJob = null;
+    });
+  }
+
+  function showTree(d: TreeData, name: string, id: string | null, m: MediaImport) {
+    startMedia(m);
     focusId = "";
     startId = undefined;
     notice = "";
@@ -204,6 +229,7 @@
       savedId = meta.id;
       unsavedHint = false;
       session?.markSaved();
+      void media?.attach(store, meta.id);
       await refresh();
     } catch (e) {
       storageError = t("app.saveFailed", { error: errorText(e, i18n.lang) });
@@ -273,6 +299,9 @@
   <header>
     <div class="brand"><strong>FamilyTree</strong><small>{t("app.subtitle")}</small></div>
     {#if data}<span class="name" title={treeName}>{treeName}</span>{/if}
+    {#if mediaProgress}
+      <span class="since" role="status" title={t("media.job.title")}>{mediaProgress.done < mediaProgress.total ? t("media.job", mediaProgress) : t("media.job.failed", { n: mediaProgress.failed })}</span>
+    {/if}
     <nav class="tabs" aria-label={t("app.tabs.label")}>
       {#each TABS as t (t.id)}
         <button class="tab" class:on={tab === t.id} aria-current={tab === t.id ? "page" : undefined} onclick={() => (tab = t.id)}>{t.label}</button>
@@ -315,7 +344,7 @@
     <div class="stage" class:hidden={tab !== "tree"}>
       {#if data}
         <!-- {#key}: bei einem anderen Baum wird die Ansicht komplett neu aufgebaut; Änderungen laufen über viewer.updateData -->
-        {#key treeKey}<TreeViewer bind:this={viewer} {data} {graph} {startId} title={treeName} onFocusChange={(id) => (focusId = id)} />{/key}
+        {#key treeKey}<TreeViewer bind:this={viewer} {data} {graph} {startId} {media} title={treeName} onFocusChange={(id) => (focusId = id)} />{/key}
       {:else}
         <p class="empty">{t("app.empty")}</p>
       {/if}

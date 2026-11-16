@@ -109,7 +109,7 @@ Anlass: GEDCOM-Exporte (z. B. MyHeritage) enthalten Medienverweise (`OBJE`/`FILE
 - [x] Datenmodell: Medien an Person (Ereignis später), `TreeData` bleibt Version 1 (D44)
 - [x] GEDCOM-Import/-Export: `OBJE`-Verweise (Datei, Titel, Format) lesen und schreiben; relative und absolute Pfade, fehlende Dateien als Hinweis (D44, D45)
 - [x] Zugriff im Browser: Ordnerauswahl im Importdialog, Zuordnung über Pfadende, Vorschauen in IndexedDB, Backup nur mit Verweisen (D45). Offen: Bilder nachträglich an gespeicherten Baum anbinden
-- [x] Anzeige: Hauptbild und Galerie im Detailfenster, Alternativtext; lokal (D45). Offen: Avatar auf der Karte, Vollbild, Bearbeiten (Foto hinzufügen/entfernen)
+- [x] Anzeige: Hauptbild und Galerie im Detailfenster, Alternativtext; lokal (D45). Avatar auf der Karte fertig (D46). Offen: Vollbild, Bearbeiten (Foto hinzufügen/entfernen)
 - Hinweis: Die echten Fotos liegen unter `imports/` und werden nicht eingecheckt; Beispiele nur mit erfundenen Bildern.
 
 ## Offene Fragen

@@ -13,7 +13,7 @@
   import type { RelativeErrors, RelativeForm } from "./relativeForm";
   import type { PersonInfo, RelativeRef } from "./personInfo";
   import MediaGallery from "./MediaGallery.svelte";
-  import type { MediaLookup } from "./mediaLookup";
+  import type { MediaLookup } from "./mediaHub";
 
   let {
     info,

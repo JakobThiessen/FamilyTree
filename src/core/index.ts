@@ -17,3 +17,4 @@ export * from "./edit";
 export * from "./editSession";
 export * from "./relatives";
 export * from "./backupNotice";
+export * from "./media";
